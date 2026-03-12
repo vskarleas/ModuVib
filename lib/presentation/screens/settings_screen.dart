@@ -11,7 +11,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/ble_protocol.dart';
 
 // ══════════════════════════════════════════════════════════════
-// SETTINGS SCREEN — Réglages de l'application NeuroSense
+// SETTINGS SCREEN — Réglages de l'application ModuVub
 // ══════════════════════════════════════════════════════════════
 
 class SettingsScreen extends ConsumerWidget {
@@ -65,7 +65,7 @@ class SettingsScreen extends ConsumerWidget {
               icon: LucideIcons.bluetooth,
               title: 'Appareil Bluetooth',
               subtitle: bleState == BleConnectionState.connected
-                  ? 'NeuroSense-ESP32 connecté'
+                  ? 'ModuVub-ESP32 connecté'
                   : 'Non connecté',
               cardColor: cardColor,
               textPrimary: textPrimary,
@@ -156,7 +156,7 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsTile(
               icon: LucideIcons.info,
               title: 'À propos',
-              subtitle: 'NeuroSense — GTS815 ÉTS',
+              subtitle: 'ModuVub — GTS815 ÉTS',
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
@@ -305,7 +305,7 @@ class _ProfileCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'NeuroSense v1.0',
+                  'ModuVub v1.0',
                   style: GoogleFonts.poppins(fontSize: 13, color: textSecondary),
                 ),
               ],

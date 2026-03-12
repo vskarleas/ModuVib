@@ -8,14 +8,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:flutter_application_v1/main.dart';
+import 'package:ModuVib/main.dart';
 
 void main() {
   testWidgets('App launches smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: NeuroSenseApp()));
+    await tester.pumpWidget(const ProviderScope(child: ModuVubApp()));
     await tester.pumpAndSettle();
 
-    // Verify NeuroSense title is shown on login
-    expect(find.text('NeuroSense'), findsOneWidget);
+    // Verify ModuVub title is shown on login
+    expect(find.text('ModuVub'), findsOneWidget);
   });
 }

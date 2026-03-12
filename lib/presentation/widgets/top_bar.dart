@@ -13,7 +13,7 @@ import '../../core/providers/app_providers.dart';
 
 class NeuroTopBar extends ConsumerWidget {
   final String title;
-  const NeuroTopBar({super.key, this.title = 'NeuroSense'});
+  const NeuroTopBar({super.key, this.title = 'ModuVub'});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

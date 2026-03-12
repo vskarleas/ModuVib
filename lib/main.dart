@@ -8,7 +8,7 @@ import 'core/router/app_router.dart';
 import 'core/providers/app_providers.dart';
 
 // ============================================================
-// NEUROSENSE — Point d'entrée de l'application
+// MODUVUB — Point d'entrée de l'application
 // ============================================================
 // App de contrôle d'un gilet vibrotactile pour victimes
 // de brûlures (prurit dorsal). ESP32 + Flutter BLE.
@@ -38,13 +38,13 @@ void main() async {
       overrides: [
         initialRouteProvider.overrideWith((ref) => startRoute),
       ],
-      child: const NeuroSenseApp(),
+      child: const ModuVubApp(),
     ),
   );
 }
 
-class NeuroSenseApp extends ConsumerWidget {
-  const NeuroSenseApp({super.key});
+class ModuVubApp extends ConsumerWidget {
+  const ModuVubApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,7 +52,7 @@ class NeuroSenseApp extends ConsumerWidget {
     final isDark = ref.watch(darkModeProvider);
 
     return MaterialApp.router(
-      title: 'NeuroSense',
+      title: 'ModuVub',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,

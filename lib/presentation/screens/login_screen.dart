@@ -9,7 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/router/app_router.dart';
 
 // ══════════════════════════════════════════════════════════════
-// LOGIN SCREEN — Écran de connexion NeuroSense
+// LOGIN SCREEN — Écran de connexion ModuVub
 // ══════════════════════════════════════════════════════════════
 // Design : En-tête vague bleue, illustration, formulaire épuré
 // Logique : StatefulWidget, GoRouter, validation de formulaire

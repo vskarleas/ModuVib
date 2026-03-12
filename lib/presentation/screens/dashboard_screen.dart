@@ -10,7 +10,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/ble_protocol.dart';
 
 // ══════════════════════════════════════════════════════════════
-// DASHBOARD SCREEN — Tableau de bord NeuroSense
+// DASHBOARD SCREEN — Tableau de bord ModuVub
 // ══════════════════════════════════════════════════════════════
 
 class DashboardScreen extends ConsumerWidget {
@@ -42,7 +42,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Vue d\'ensemble de votre NeuroSense',
+              'Vue d\'ensemble de votre ModuVub',
               style: GoogleFonts.poppins(fontSize: 14, color: textSecondary),
             ),
             const SizedBox(height: 20),
