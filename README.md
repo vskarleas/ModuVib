@@ -9,6 +9,8 @@
 * [X] Understand the code and its structure
 * [X] Update the manual screen
 * [X] Write the code for the ESP32 in order to communicate under the name ModuVib
+* [ ] Fix login issue with phone number. It says on android Error d'autentication (unknown). On Ios it just tcuks
+* [ ] Integrate the codes found on the notes section that Dounia sent me in the different actiosn of the app.
 
 ## Notes
 
@@ -17,3 +19,12 @@
   * Protocol has all the motors details and hard coded options like the proposed aplitudes fo rthe programmes page
   * Servic eis for all teh communication part. There is battery module that allows to simply reccurently to check the current that is available on the batetry. And also has all the callbacks and connection requests to the ESP32 module using the UUID that were hardcoded using the Arduino IDE.
 * Teh user can now sign up with their email and then he is asked for their phone number. Then he can use either the phone numer of the password/email method. FaceID can be an option as well
+* Envoie ces 3 octets :
+  * moteur 1 activé
+    01 01 FF
+  * moteur 1 désactivé
+    01 01 00
+  * stop
+    03 00 00
+  * ping
+    05 00 00
