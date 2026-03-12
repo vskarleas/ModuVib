@@ -1,4 +1,4 @@
-package com.example.flutter_application_v1
+package com.vskarleas.moduvib
 
 import io.flutter.embedding.android.FlutterActivity
 
