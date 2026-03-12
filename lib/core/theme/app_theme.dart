@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // ══════════════════════════════════════════════════════════════
-// MODUVUB — Design System
+// MODUVIB — Design System
 // ══════════════════════════════════════════════════════════════
 // Style    : Moderne, Épuré, Médical mais Accueillant
 // Palette  : Blanc / Bleu (#2196F3) / Glassmorphisme

@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../main.dart';
 import '../../presentation/navigation/scaffold_with_nav.dart';
 import '../../presentation/screens/login_screen.dart';
+import '../../presentation/screens/create_account_screen.dart';
+import '../../presentation/screens/email_verification_screen.dart';
 import '../../presentation/screens/dashboard_screen.dart';
 import '../../presentation/screens/manual_control_screen.dart';
 import '../../presentation/screens/patterns_screen.dart';
@@ -26,6 +28,8 @@ class AppRoutes {
   AppRoutes._();
 
   static const String login = '/login';
+  static const String createAccount = '/create-account';
+  static const String emailVerification = '/email-verification';
   static const String home = '/home';
   static const String manualControl = '/manual-control';
   static const String patterns = '/patterns';
@@ -45,6 +49,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => CustomTransitionPage(
           key: state.pageKey,
           child: const LoginScreen(),
+          transitionsBuilder: (context, animation, _, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      ),
+
+      // ── Create Account (full screen, no nav bar) ──
+      GoRoute(
+        path: AppRoutes.createAccount,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const CreateAccountScreen(),
+          transitionsBuilder: (context, animation, _, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      ),
+
+      // ── Email Verification (full screen, no nav bar) ──
+      GoRoute(
+        path: AppRoutes.emailVerification,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const EmailVerificationScreen(),
           transitionsBuilder: (context, animation, _, child) {
             return FadeTransition(opacity: animation, child: child);
           },

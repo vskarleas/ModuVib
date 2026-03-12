@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/ble_protocol.dart';
 
 // ══════════════════════════════════════════════════════════════
 // PATTERNS SCREEN — Programmes automatiques de vibration
@@ -18,6 +19,8 @@ class _PatternInfo {
   final String description;
   final IconData icon;
   final Color accentColor;
+  final double frequency;   // Fréquence fixe (0.0–1.0)
+  final int protocolId;     // Identifiant BLE (BleProtocol.patternXxx)
 
   const _PatternInfo({
     required this.id,
@@ -26,6 +29,8 @@ class _PatternInfo {
     required this.description,
     required this.icon,
     required this.accentColor,
+    required this.frequency,
+    required this.protocolId,
   });
 }
 
@@ -37,6 +42,8 @@ const _kPatterns = <_PatternInfo>[
     description: 'Les moteurs s\'activent de haut en bas',
     icon: LucideIcons.waves,
     accentColor: Color(0xFF2196F3),
+    frequency: BleProtocol.frequencyWave,     // 73%
+    protocolId: BleProtocol.patternWave,
   ),
   _PatternInfo(
     id: 'rain',
@@ -45,6 +52,8 @@ const _kPatterns = <_PatternInfo>[
     description: 'Activations douces et aléatoires',
     icon: LucideIcons.cloudRain,
     accentColor: Color(0xFF5C6BC0),
+    frequency: BleProtocol.frequencyRain,     // 44%
+    protocolId: BleProtocol.patternRain,
   ),
   _PatternInfo(
     id: 'pulse',
@@ -53,6 +62,8 @@ const _kPatterns = <_PatternInfo>[
     description: 'Tous les moteurs en même temps',
     icon: LucideIcons.zap,
     accentColor: Color(0xFFFF9800),
+    frequency: BleProtocol.frequencyPulse,    // 87%
+    protocolId: BleProtocol.patternPulse,
   ),
   _PatternInfo(
     id: 'circle',
@@ -61,6 +72,8 @@ const _kPatterns = <_PatternInfo>[
     description: 'Rotation autour du dos',
     icon: LucideIcons.refreshCw,
     accentColor: Color(0xFF26A69A),
+    frequency: BleProtocol.frequencyCircle,   // 82%
+    protocolId: BleProtocol.patternCircle,
   ),
 ];
 
@@ -86,13 +99,26 @@ class _PatternsScreenState extends ConsumerState<PatternsScreen> {
     if (!mounted) return;
 
     final current = ref.read(activePatternProvider);
+    final bleService = ref.read(bleServiceProvider);
+
     if (current == patternId) {
+      // Arrêter le pattern actif
       ref.read(patternTimerNotifierProvider.notifier).stopPattern();
       return;
     }
 
-    // Démarrer le pattern
+    // Arrêter les moteurs, puis lancer le nouveau programme
+    bleService.sendCommand(BleProtocol.stopCommand());
+
+    final pattern = _kPatterns.firstWhere((p) => p.id == patternId);
+    final intensityByte = BleProtocol.intensityToByte(pattern.frequency);
+    bleService.sendCommand(
+      BleProtocol.patternCommand(pattern.protocolId, intensityByte),
+    );
+
+    // Mettre à jour l'état
     ref.read(activePatternProvider.notifier).state = patternId;
+    ref.read(motorsRunningProvider.notifier).state = true;
     ref.read(lastSessionTimeProvider.notifier).state = DateTime.now();
 
     // Lancer le minuteur si un preset est sélectionné

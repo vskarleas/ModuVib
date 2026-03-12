@@ -20,22 +20,50 @@ class BleProtocol {
   static const int cmdPing = 0x05;
   static const int cmdBatteryRequest = 0x06;
 
-  // ── Identifiants moteur (3×3 grille dorsale) ─────────────────────────────
-  static const int motorTopLeft = 0x01;
-  static const int motorTopCenter = 0x02;
-  static const int motorTopRight = 0x03;
-  static const int motorMidLeft = 0x04;
-  static const int motorMidCenter = 0x05;
-  static const int motorMidRight = 0x06;
-  static const int motorBotLeft = 0x07;
-  static const int motorBotCenter = 0x08;
-  static const int motorBotRight = 0x09;
+  // ── Identifiants moteur (5×3 grille dorsale — 15 moteurs, pins 1‑15) ───
+  // Rangée 1 (haut)
+  static const int motor1  = 0x01;
+  static const int motor2  = 0x02;
+  static const int motor3  = 0x03;
+  // Rangée 2
+  static const int motor4  = 0x04;
+  static const int motor5  = 0x05;
+  static const int motor6  = 0x06;
+  // Rangée 3 (milieu)
+  static const int motor7  = 0x07;
+  static const int motor8  = 0x08;
+  static const int motor9  = 0x09;
+  // Rangée 4
+  static const int motor10 = 0x0A;
+  static const int motor11 = 0x0B;
+  static const int motor12 = 0x0C;
+  // Rangée 5 (bas)
+  static const int motor13 = 0x0D;
+  static const int motor14 = 0x0E;
+  static const int motor15 = 0x0F;
+
+  static const int motorCount = 15;
+
+  /// Grille moteur : 5 rangées × 3 colonnes (identifiants des pins)
+  static const List<List<int>> motorGrid = [
+    [0x01, 0x02, 0x03],
+    [0x04, 0x05, 0x06],
+    [0x07, 0x08, 0x09],
+    [0x0A, 0x0B, 0x0C],
+    [0x0D, 0x0E, 0x0F],
+  ];
 
   // ── Identifiants pattern ─────────────────────────────────────────────────
   static const int patternWave = 0x01;
   static const int patternRain = 0x02;
   static const int patternPulse = 0x03;
   static const int patternCircle = 0x04;
+
+  // ── Fréquences fixes des programmes (0.0–1.0) ───────────────────────────
+  static const double frequencyWave   = 0.73; // Vague
+  static const double frequencyRain   = 0.44; // Pluie
+  static const double frequencyPulse  = 0.87; // Impulsion
+  static const double frequencyCircle = 0.82; // Cercle
 
   // ── Constructeurs de commandes ───────────────────────────────────────────
 

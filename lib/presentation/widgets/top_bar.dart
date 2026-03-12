@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/ble_protocol.dart';
 
 // ══════════════════════════════════════════════════════════════
 // TOP BAR — Barre supérieure persistante
@@ -13,12 +14,13 @@ import '../../core/providers/app_providers.dart';
 
 class NeuroTopBar extends ConsumerWidget {
   final String title;
-  const NeuroTopBar({super.key, this.title = 'ModuVub'});
+  const NeuroTopBar({super.key, this.title = 'ModuVib'});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final battery = ref.watch(batteryLevelProvider);
     final bleState = ref.watch(bleConnectionProvider);
+    final isConnected = bleState == BleConnectionState.connected;
 
     return ClipRRect(
       child: BackdropFilter(
@@ -52,9 +54,12 @@ class NeuroTopBar extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              _BatteryChip(level: battery),
+              _BatteryChip(level: battery, isConnected: isConnected),
               const SizedBox(width: 8),
-              _BleIcon(state: bleState),
+              _BleIcon(
+                state: bleState,
+                onTap: () => _toggleBle(ref, context),
+              ),
               const SizedBox(width: 8),
               _StopButton(
                 onPressed: () => _triggerEmergencyStop(ref, context),
@@ -71,6 +76,10 @@ class NeuroTopBar extends ConsumerWidget {
     ref.read(activeMotorsProvider.notifier).state = {};
     ref.read(activePatternProvider.notifier).state = null;
     ref.read(patternTimerSecondsProvider.notifier).state = null;
+    ref.read(motorsRunningProvider.notifier).state = false;
+
+    // Envoyer commande d'arrêt BLE
+    ref.read(bleServiceProvider).sendCommand(BleProtocol.stopCommand());
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -97,16 +106,54 @@ class NeuroTopBar extends ConsumerWidget {
       ref.read(emergencyStopProvider.notifier).state = false;
     });
   }
+
+  Future<void> _toggleBle(WidgetRef ref, BuildContext context) async {
+    final state = ref.read(bleConnectionProvider);
+    final bleService = ref.read(bleServiceProvider);
+
+    if (state == BleConnectionState.connected) {
+      await bleService.disconnect();
+    } else if (state == BleConnectionState.disconnected ||
+        state == BleConnectionState.error) {
+      await bleService.connect();
+    }
+  }
 }
 
 // ── Chip Batterie ────────────────────────────────────────────
 
 class _BatteryChip extends StatelessWidget {
   final int level;
-  const _BatteryChip({required this.level});
+  final bool isConnected;
+  const _BatteryChip({required this.level, required this.isConnected});
 
   @override
   Widget build(BuildContext context) {
+    if (!isConnected) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.textSecondary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(LucideIcons.batteryWarning, size: 16, color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Text(
+              '--%',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final color = level > 20 ? AppColors.primary : AppColors.error;
     final icon = level > 50
         ? LucideIcons.batteryFull
@@ -143,7 +190,8 @@ class _BatteryChip extends StatelessWidget {
 
 class _BleIcon extends StatelessWidget {
   final BleConnectionState state;
-  const _BleIcon({required this.state});
+  final VoidCallback onTap;
+  const _BleIcon({required this.state, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -154,14 +202,17 @@ class _BleIcon extends StatelessWidget {
       BleConnectionState.disconnected => (AppColors.textSecondary, LucideIcons.bluetoothOff),
     };
 
-    return Container(
-      width: 34,
-      height: 34,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 18, color: color),
       ),
-      child: Icon(icon, size: 18, color: color),
     );
   }
 }

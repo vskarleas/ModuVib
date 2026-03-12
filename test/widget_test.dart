@@ -12,10 +12,10 @@ import 'package:ModuVib/main.dart';
 
 void main() {
   testWidgets('App launches smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: ModuVubApp()));
+    await tester.pumpWidget(const ProviderScope(child: ModuVibApp()));
     await tester.pumpAndSettle();
 
-    // Verify ModuVub title is shown on login
-    expect(find.text('ModuVub'), findsOneWidget);
+    // Verify ModuVib title is shown on login
+    expect(find.text('ModuVib'), findsOneWidget);
   });
 }

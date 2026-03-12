@@ -10,7 +10,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/ble_protocol.dart';
 
 // ══════════════════════════════════════════════════════════════
-// DASHBOARD SCREEN — Tableau de bord ModuVub
+// DASHBOARD SCREEN — Tableau de bord ModuVib
 // ══════════════════════════════════════════════════════════════
 
 class DashboardScreen extends ConsumerWidget {
@@ -42,17 +42,13 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Vue d\'ensemble de votre ModuVub',
+              'Vue d\'ensemble de votre ModuVib',
               style: GoogleFonts.poppins(fontSize: 14, color: textSecondary),
             ),
             const SizedBox(height: 20),
 
             // ── État du système ────────────────────────────────
             _SystemStatusCard(isDark: isDark),
-            const SizedBox(height: 16),
-
-            // ── Dernière session ───────────────────────────────
-            _LastSessionCard(isDark: isDark),
             const SizedBox(height: 24),
 
             // ── Intensité globale ──────────────────────────────
@@ -183,8 +179,10 @@ class _SystemStatusCard extends ConsumerWidget {
                 child: _StatusItem(
                   icon: LucideIcons.battery,
                   label: 'Batterie',
-                  value: '$battery%',
-                  color: battery < 20 ? AppColors.error : AppColors.primary,
+                  value: isConnected ? '$battery%' : '--%',
+                  color: !isConnected
+                      ? AppColors.textSecondary
+                      : (battery < 20 ? AppColors.error : AppColors.primary),
                   textPrimary: textPrimary,
                   textSecondary: textSecondary,
                 ),
@@ -276,87 +274,6 @@ class _StatusItem extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Dernière Session
-// ══════════════════════════════════════════════════════════════
-
-class _LastSessionCard extends ConsumerWidget {
-  final bool isDark;
-  const _LastSessionCard({required this.isDark});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lastSession = ref.watch(lastSessionTimeProvider);
-    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-    final textPrimary = isDark ? const Color(0xFFE0E0E0) : AppColors.textPrimary;
-    final textSecondary = isDark ? const Color(0xFF9E9E9E) : AppColors.textSecondary;
-
-    String timeAgo;
-    if (lastSession == null) {
-      timeAgo = 'Aucune session';
-    } else {
-      final diff = DateTime.now().difference(lastSession);
-      if (diff.inMinutes < 60) {
-        timeAgo = 'il y a ${diff.inMinutes} min';
-      } else if (diff.inHours < 24) {
-        timeAgo = 'il y a ${diff.inHours}h';
-      } else {
-        timeAgo = 'il y a ${diff.inDays} jour${diff.inDays > 1 ? 's' : ''}';
-      }
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.15),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(LucideIcons.clock, size: 22, color: AppColors.primary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Dernière session',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: textPrimary,
-                  ),
-                ),
-                Text(
-                  'Soulagement activé $timeAgo',
-                  style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            LucideIcons.chevronRight,
-            size: 18,
-            color: textSecondary.withValues(alpha: 0.4),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
 // Slider d'intensité globale
 // ══════════════════════════════════════════════════════════════
 
@@ -368,6 +285,7 @@ class _MasterIntensitySlider extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final intensity = ref.watch(masterIntensityProvider);
     final maxThreshold = ref.watch(maxIntensityThresholdProvider);
+    final motorsRunning = ref.watch(motorsRunningProvider);
     final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
     final textPrimary = isDark ? const Color(0xFFE0E0E0) : AppColors.textPrimary;
     final textSecondary = isDark ? const Color(0xFF9E9E9E) : AppColors.textSecondary;
@@ -432,8 +350,17 @@ class _MasterIntensitySlider extends ConsumerWidget {
             child: Slider(
               value: intensity,
               max: maxThreshold,
-              onChanged: (v) =>
-                  ref.read(masterIntensityProvider.notifier).state = v,
+              onChanged: (v) {
+                ref.read(masterIntensityProvider.notifier).state = v;
+                // MAJ intensité ESP32 en temps réel si moteurs actifs
+                if (ref.read(motorsRunningProvider)) {
+                  ref.read(bleServiceProvider).sendCommand(
+                    BleProtocol.masterIntensityCommand(
+                      BleProtocol.intensityToByte(v),
+                    ),
+                  );
+                }
+              },
             ),
           ),
           const SizedBox(height: 4),
@@ -454,6 +381,52 @@ class _MasterIntensitySlider extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          // ── Bouton Activer / Arrêter les vibrations ──
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                final bleService = ref.read(bleServiceProvider);
+                if (motorsRunning) {
+                  bleService.sendCommand(BleProtocol.stopCommand());
+                  ref.read(motorsRunningProvider.notifier).state = false;
+                } else {
+                  final byte = BleProtocol.intensityToByte(intensity);
+                  bleService.sendCommand(
+                    BleProtocol.masterIntensityCommand(byte),
+                  );
+                  ref.read(motorsRunningProvider.notifier).state = true;
+                  ref.read(lastSessionTimeProvider.notifier).state =
+                      DateTime.now();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: motorsRunning
+                    ? AppColors.error
+                    : AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: Icon(
+                motorsRunning ? LucideIcons.square : LucideIcons.play,
+                size: 18,
+              ),
+              label: Text(
+                motorsRunning
+                    ? 'Arrêter les vibrations'
+                    : 'Activer les vibrations',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -471,6 +444,8 @@ class _BatteryEstimation extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final battery = ref.watch(batteryLevelProvider);
     final intensity = ref.watch(masterIntensityProvider);
+    final bleState = ref.watch(bleConnectionProvider);
+    final isConnected = bleState == BleConnectionState.connected;
     final remaining = BleProtocol.estimateRemainingMinutes(battery, intensity);
 
     final hours = remaining ~/ 60;
@@ -519,7 +494,9 @@ class _BatteryEstimation extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  'Environ $timeStr à ${(intensity * 100).round()}% d\'intensité',
+                  isConnected
+                      ? 'Environ $timeStr à ${(intensity * 100).round()}% d\'intensité'
+                      : 'Appareil non connecté',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -544,11 +521,15 @@ class _AnalyticsChart extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sessions = ref.watch(sessionHistoryProvider);
+    final sessionsAsync = ref.watch(sessionHistoryProvider);
     final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
     final textPrimary = isDark ? const Color(0xFFE0E0E0) : AppColors.textPrimary;
     final textSecondary = isDark ? const Color(0xFF9E9E9E) : AppColors.textSecondary;
 
+    return sessionsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Text('Erreur de chargement', style: GoogleFonts.poppins(color: textSecondary)),
+      data: (sessions) {
     // Fréquence horaire (24 cases)
     final hourCounts = List<int>.filled(24, 0);
     for (final s in sessions) {
@@ -676,6 +657,8 @@ class _AnalyticsChart extends ConsumerWidget {
         ],
       ),
     );
+      }, // end data
+    ); // end when
   }
 
   String _findPeakMessage(List<int> hourCounts) {

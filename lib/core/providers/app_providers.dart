@@ -1,5 +1,11 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../services/ble_service.dart';
+import '../services/ble_protocol.dart';
+import '../services/auth_service.dart';
+import '../services/session_service.dart';
 
 // ── BLE ──────────────────────────────────────────────────────────────────────
 enum BleConnectionState { disconnected, connecting, connected, error }
@@ -8,6 +14,36 @@ final bleConnectionProvider = StateProvider<BleConnectionState>(
   (ref) => BleConnectionState.disconnected,
 );
 
+// ── BLE Service ─────────────────────────────────────────────────────────────
+final bleServiceProvider = Provider<BleService>((ref) {
+  final service = BleService();
+  service.onConnectionChanged = (connected) {
+    ref.read(bleConnectionProvider.notifier).state =
+        connected ? BleConnectionState.connected : BleConnectionState.disconnected;
+    if (!connected) {
+      ref.read(motorsRunningProvider.notifier).state = false;
+    }
+  };
+  service.onConnecting = (connecting) {
+    if (connecting) {
+      ref.read(bleConnectionProvider.notifier).state = BleConnectionState.connecting;
+    }
+  };
+  service.onBatteryChanged = (level) {
+    ref.read(batteryLevelProvider.notifier).state = level;
+  };
+  service.onError = () {
+    ref.read(bleConnectionProvider.notifier).state = BleConnectionState.error;
+    // Revenir à disconnected après 2 secondes
+    Future.delayed(const Duration(seconds: 2), () {
+      if (ref.read(bleConnectionProvider) == BleConnectionState.error) {
+        ref.read(bleConnectionProvider.notifier).state = BleConnectionState.disconnected;
+      }
+    });
+  };
+  return service;
+});
+
 // ── Hardware Status ─────────────────────────────────────────────────────────
 final batteryLevelProvider = StateProvider<int>((ref) => 84);
 final vestTemperatureProvider = StateProvider<double>((ref) => 36.2);
@@ -15,6 +51,9 @@ final vestVoltageProvider = StateProvider<double>((ref) => 3.7);
 
 // ── Master Intensity (0.0 – 1.0) ────────────────────────────────────────────
 final masterIntensityProvider = StateProvider<double>((ref) => 0.5);
+
+// ── Motors Running State ────────────────────────────────────────────────────
+final motorsRunningProvider = StateProvider<bool>((ref) => false);
 
 // ── Safety ──────────────────────────────────────────────────────────────────
 final maxIntensityThresholdProvider = StateProvider<double>((ref) => 0.8);
@@ -39,6 +78,19 @@ final activationRadiusProvider = StateProvider<double>((ref) => 1.0);
 final darkModeProvider = StateProvider<bool>((ref) => false);
 final rememberMeProvider = StateProvider<bool>((ref) => false);
 
+// ── Firebase Auth ───────────────────────────────────────────────────────────
+final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+
+final authStateProvider = StreamProvider<User?>((ref) {
+  return ref.watch(authServiceProvider).authStateChanges;
+});
+
+// ── Firestore Session Service ───────────────────────────────────────────────
+final sessionServiceProvider = Provider<SessionService>((ref) => SessionService());
+
+// ── Biometric auth preference ───────────────────────────────────────────────
+final biometricEnabledProvider = StateProvider<bool>((ref) => true);
+
 // ── Analytics / Journal des Démangeaisons ───────────────────────────────────
 class SessionEntry {
   final DateTime time;
@@ -52,43 +104,18 @@ class SessionEntry {
   });
 }
 
-final sessionHistoryProvider = StateProvider<List<SessionEntry>>((ref) => [
-      SessionEntry(
-        time: DateTime.now().subtract(const Duration(minutes: 20)),
-        durationMinutes: 15,
-        intensity: 0.6,
-      ),
-      SessionEntry(
-        time: DateTime(2026, 2, 7, 22, 30),
-        durationMinutes: 22,
-        intensity: 0.4,
-      ),
-      SessionEntry(
-        time: DateTime(2026, 2, 7, 9, 15),
-        durationMinutes: 8,
-        intensity: 0.7,
-      ),
-      SessionEntry(
-        time: DateTime(2026, 2, 6, 21, 45),
-        durationMinutes: 30,
-        intensity: 0.5,
-      ),
-      SessionEntry(
-        time: DateTime(2026, 2, 6, 14, 0),
-        durationMinutes: 12,
-        intensity: 0.3,
-      ),
-      SessionEntry(
-        time: DateTime(2026, 2, 5, 22, 10),
-        durationMinutes: 18,
-        intensity: 0.55,
-      ),
-      SessionEntry(
-        time: DateTime(2026, 2, 4, 23, 0),
-        durationMinutes: 25,
-        intensity: 0.65,
-      ),
-    ]);
+/// Fetches sessions from Firestore; falls back to empty list when not signed in.
+final sessionHistoryProvider = FutureProvider<List<SessionEntry>>((ref) async {
+  final sessionService = ref.watch(sessionServiceProvider);
+  final records = await sessionService.recentSessions();
+  return records
+      .map((r) => SessionEntry(
+            time: r.time,
+            durationMinutes: r.durationMinutes,
+            intensity: r.intensity,
+          ))
+      .toList();
+});
 
 // ── Pattern Timer Manager ───────────────────────────────────────────────────
 /// Gère le timer des patterns de manière globale (persiste entre les pages)
@@ -125,6 +152,9 @@ class PatternTimerNotifier extends StateNotifier<void> {
     ref.read(activePatternProvider.notifier).state = null;
     ref.read(patternTimerSecondsProvider.notifier).state = null;
     ref.read(activeMotorsProvider.notifier).state = {};
+    ref.read(motorsRunningProvider.notifier).state = false;
+    // Envoyer commande stop BLE
+    ref.read(bleServiceProvider).sendCommand(BleProtocol.stopCommand());
   }
 
   @override
