@@ -48,7 +48,12 @@ final bleServiceProvider = Provider<BleService>((ref) {
 // ── Hardware Status ─────────────────────────────────────────────────────────
 final batteryLevelProvider = StateProvider<int>((ref) => 84);
 final vestTemperatureProvider = StateProvider<double>((ref) => 36.2);
-final vestVoltageProvider = StateProvider<double>((ref) => 3.7);
+
+/// Voltage derived from battery % — powerbank range: 3.2V (empty) → 4.7V (full)
+final vestVoltageProvider = Provider<double>((ref) {
+  final battery = ref.watch(batteryLevelProvider);
+  return 3.2 + (battery / 100.0) * 1.5; // 0% → 3.2V, 100% → 4.7V
+});
 
 // ── Master Intensity (0.0 – 1.0) ────────────────────────────────────────────
 final masterIntensityProvider = StateProvider<double>((ref) => 0.5);

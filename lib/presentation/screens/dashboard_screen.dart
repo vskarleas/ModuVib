@@ -182,8 +182,10 @@ class _SystemStatusCard extends ConsumerWidget {
                 child: _StatusItem(
                   icon: LucideIcons.thermometer,
                   label: 'Température',
-                  value: '${temp.toStringAsFixed(1)}°C',
-                  color: temp > 40 ? AppColors.error : AppColors.primary,
+                  value: isConnected ? '${temp.toStringAsFixed(1)}°C' : '--',
+                  color: !isConnected
+                      ? AppColors.textSecondary
+                      : (temp > 40 ? AppColors.error : AppColors.primary),
                   textPrimary: textPrimary,
                   textSecondary: textSecondary,
                 ),
@@ -197,8 +199,10 @@ class _SystemStatusCard extends ConsumerWidget {
                 child: _StatusItem(
                   icon: LucideIcons.zap,
                   label: 'Voltage',
-                  value: '${voltage.toStringAsFixed(1)}V',
-                  color: voltage < 3.2 ? AppColors.error : AppColors.primary,
+                  value: isConnected ? '${voltage.toStringAsFixed(1)}V' : '--',
+                  color: !isConnected
+                      ? AppColors.textSecondary
+                      : (voltage < 3.5 ? AppColors.error : AppColors.primary),
                   textPrimary: textPrimary,
                   textSecondary: textSecondary,
                 ),
