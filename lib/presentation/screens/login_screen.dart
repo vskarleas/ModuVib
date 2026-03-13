@@ -105,41 +105,45 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _handleBiometric() async {
-    setState(() => _isLoading = true);
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        setState(() {
-          _errorText = 'Veuillez d\'abord vous connecter avec email';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final biometricEnabled = await _securityService.isBiometricEnabled(user.uid);
-      if (!biometricEnabled) {
-        setState(() {
-          _errorText = 'Biométrie non activée pour ce compte';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final didAuth = await _securityService.authenticateWithBiometric();
-      if (didAuth && mounted) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('rememberMe', true);
-        if (mounted) context.go(AppRoutes.home);
-      } else {
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
+  Future<void> _handleForgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
       setState(() {
-        _errorText = 'Erreur d\'authentification biométrique';
-        _isLoading = false;
+        _emailError = true;
+        _errorText = 'Entrez votre email pour réinitialiser le mot de passe';
       });
+      return;
     }
+
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      // Log but don't reveal whether account exists
+      debugPrint('[Auth] sendPasswordResetEmail error: ${e.code}');
+    } catch (e) {
+      debugPrint('[Auth] sendPasswordResetEmail unexpected error: $e');
+    }
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Si un compte existe pour $email, un lien de réinitialisation vous sera envoyé.',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 
   // ── Build ──
@@ -277,7 +281,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const Spacer(),
                         TextButton(
-                          onPressed: () {},
+                          onPressed: _isLoading ? null : _handleForgotPassword,
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             minimumSize: const Size(0, 28),
@@ -300,13 +304,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
 
                     _buildLoginButton(),
-                    SizedBox(height: h * 0.012),
-                    _buildDivider(isDark),
-                    SizedBox(height: h * 0.012),
-                    _buildBiometricButton(isDark),
-                    SizedBox(height: h * 0.008),
-                    _buildPinLoginButton(),
-                    SizedBox(height: h * 0.01),
+                    SizedBox(height: h * 0.015),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -463,70 +461,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildDivider(bool isDark) {
-    final dividerCol = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
-    return Row(
-      children: [
-        Expanded(child: Divider(color: dividerCol)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text('ou', style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade500)),
-        ),
-        Expanded(child: Divider(color: dividerCol)),
-      ],
-    );
-  }
-
-  Widget _buildBiometricButton(bool isDark) {
-    return SizedBox(
-      width: double.infinity, height: 52,
-      child: OutlinedButton(
-        onPressed: _isLoading ? null : _handleBiometric,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(LucideIcons.scan, size: 20),
-            const SizedBox(width: 6),
-            Text('Face ID', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 12),
-            Container(width: 1, height: 20, color: isDark ? Colors.grey.shade600 : Colors.grey.shade300),
-            const SizedBox(width: 12),
-            const Icon(LucideIcons.fingerprint, size: 20),
-            const SizedBox(width: 6),
-            Text('Empreinte', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPinLoginButton() {
-    return SizedBox(
-      width: double.infinity, height: 44,
-      child: TextButton(
-        onPressed: _isLoading ? null : () => context.go(AppRoutes.lock),
-        style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(LucideIcons.keyRound, size: 18),
-            const SizedBox(width: 8),
-            Text('Connexion par code PIN', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600)),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ══════════════════════════════════════════════════════════════
