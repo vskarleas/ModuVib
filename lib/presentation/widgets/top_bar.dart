@@ -210,8 +210,8 @@ class _BleIcon extends StatelessWidget {
     final (color, icon) = switch (state) {
       BleConnectionState.connected => (AppColors.primary, LucideIcons.bluetooth),
       BleConnectionState.connecting => (Colors.orange, LucideIcons.bluetoothSearching),
-      BleConnectionState.error => (AppColors.error, LucideIcons.bluetoothOff),
-      BleConnectionState.disconnected => (AppColors.textSecondary, LucideIcons.bluetoothOff),
+      BleConnectionState.error => (AppColors.error, LucideIcons.bluetooth),
+      BleConnectionState.disconnected => (AppColors.textSecondary, LucideIcons.bluetooth),
     };
 
     return GestureDetector(
