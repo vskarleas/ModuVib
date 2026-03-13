@@ -81,6 +81,18 @@ class NeuroTopBar extends ConsumerWidget {
     // Envoyer commande d'arrêt BLE
     ref.read(bleServiceProvider).sendCommand(BleProtocol.stopCommand());
 
+    // Log session to Firebase
+    final startTime = ref.read(sessionStartTimeProvider);
+    if (startTime != null) {
+      final intensity = ref.read(masterIntensityProvider);
+      ref.read(sessionServiceProvider).logCurrentSession(
+        startTime: startTime,
+        meanIntensity: intensity,
+      );
+      ref.read(sessionStartTimeProvider.notifier).state = null;
+      ref.invalidate(sessionHistoryProvider);
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
