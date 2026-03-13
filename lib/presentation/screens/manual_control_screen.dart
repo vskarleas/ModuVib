@@ -12,169 +12,279 @@ import '../../core/services/ble_protocol.dart';
 // MANUAL CONTROL SCREEN — Contrôle interactif des moteurs
 // ══════════════════════════════════════════════════════════════
 
-/// Positions relatives (0-1) des 24 moteurs sur la silhouette dorsale.
-/// Distribution uniforme et symétrique couvrant toute la surface du dos.
-const _kMotorPositions = <Offset>[
-  // Rangée 1 : Nuque (y=0.08) - 3 moteurs
-  Offset(0.38, 0.08), // 0
-  Offset(0.50, 0.08), // 1
-  Offset(0.62, 0.08), // 2
-  
-  // Rangée 2 : Haut épaules (y=0.19) - 5 moteurs
-  Offset(0.24, 0.19), // 3
-  Offset(0.37, 0.19), // 4
-  Offset(0.50, 0.19), // 5
-  Offset(0.63, 0.19), // 6
-  Offset(0.76, 0.19), // 7
-  
-  // Rangée 3 : Milieu épaules (y=0.31) - 5 moteurs
-  Offset(0.22, 0.31), // 8
-  Offset(0.36, 0.31), // 9
-  Offset(0.50, 0.31), // 10
-  Offset(0.64, 0.31), // 11
-  Offset(0.78, 0.31), // 12
-  
-  // Rangée 4 : Haut du dos (y=0.45) - 5 moteurs
-  Offset(0.26, 0.45), // 13
-  Offset(0.38, 0.45), // 14
-  Offset(0.50, 0.45), // 15
-  Offset(0.62, 0.45), // 16
-  Offset(0.74, 0.45), // 17
-  
-  // Rangée 5 : Milieu-bas du dos (y=0.60) - 4 moteurs
-  Offset(0.32, 0.60), // 18
-  Offset(0.44, 0.60), // 19
-  Offset(0.56, 0.60), // 20
-  Offset(0.68, 0.60), // 21
-  
-  // Rangée 6 : Lombaires (y=0.74) - 2 moteurs
-  Offset(0.42, 0.74), // 22
-  Offset(0.58, 0.74), // 23
-];
+void _showNotConnected(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          const Icon(LucideIcons.bluetoothOff, color: Colors.white, size: 18),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              'Appareil non connecté — commande non envoyée',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: Colors.orange.shade700,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      duration: const Duration(seconds: 3),
+    ),
+  );
+}
 
+/// Labels pour la grille 5×3 (15 moteurs)
 const _kMotorLabels = [
-  'M1', 'M2', 'M3', 'M4',
-  'M5', 'M6', 'M7', 'M8', 'M9',
-  'M10', 'M11', 'M12', 'M13', 'M14', 'M15',
-  'M16', 'M17', 'M18', 'M19', 'M20',
-  'M21', 'M22', 'M23', 'M24',
+  'M1', 'M2', 'M3',
+  'M4', 'M5', 'M6',
+  'M7', 'M8', 'M9',
+  'M10', 'M11', 'M12',
+  'M13', 'M14', 'M15',
 ];
 
-/// Mode de contrôle.
-enum _ControlMode { precision, dessinLibre }
-
-final _controlModeProvider =
-    StateProvider<_ControlMode>((ref) => _ControlMode.precision);
-
-// ══════════════════════════════════════════════════════════════
-
-class ManualControlScreen extends ConsumerWidget {
+class ManualControlScreen extends ConsumerStatefulWidget {
   const ManualControlScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(_controlModeProvider);
+  ConsumerState<ManualControlScreen> createState() =>
+      _ManualControlScreenState();
+}
+
+class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
+  /// Ensemble des moteurs sélectionnés (index 0–14)
+  final Set<int> _selectedMotors = {};
+
+  /// Mode multi-sélection
+  bool _multiSelect = false;
+
+  /// Retourne l'ID moteur BLE (0x01–0x0F) pour un index de grille (0–14)
+  int _motorIdForIndex(int index) {
+    return BleProtocol.motorGrid[index ~/ 3][index % 3];
+  }
+
+  Future<void> _toggleMotor(int index) async {
+    final bleService = ref.read(bleServiceProvider);
+    final intensity = ref.read(masterIntensityProvider);
+    final motorId = _motorIdForIndex(index);
+
+    if (_selectedMotors.contains(index)) {
+      // Désactiver ce moteur spécifique
+      bleService.sendCommand(
+        BleProtocol.motorCommand(motorId, 0x00),
+      );
+      setState(() => _selectedMotors.remove(index));
+    } else {
+      // Envoyer la commande BLE — vérifier la connexion
+      final byte = BleProtocol.intensityToByte(intensity);
+      final sent = await bleService.sendCommand(
+        BleProtocol.motorCommand(motorId, byte),
+      );
+      if (!sent) {
+        if (mounted) _showNotConnected(context);
+        return;
+      }
+      setState(() {
+        // En mode simple, désélectionner les autres d'abord
+        if (!_multiSelect && _selectedMotors.isNotEmpty) {
+          for (final prevIndex in _selectedMotors) {
+            bleService.sendCommand(
+              BleProtocol.motorCommand(_motorIdForIndex(prevIndex), 0x00),
+            );
+          }
+          _selectedMotors.clear();
+        }
+        _selectedMotors.add(index);
+      });
+      // Track session start
+      if (ref.read(sessionStartTimeProvider) == null) {
+        ref.read(sessionStartTimeProvider.notifier).state = DateTime.now();
+      }
+    }
+
+    // Mettre à jour le provider des moteurs actifs
+    final motors = <int, int>{};
+    final byte = BleProtocol.intensityToByte(intensity);
+    for (final i in _selectedMotors) {
+      motors[i] = byte;
+    }
+    ref.read(activeMotorsProvider.notifier).state = motors;
+    ref.read(motorsRunningProvider.notifier).state = _selectedMotors.isNotEmpty;
+
+    HapticFeedback.lightImpact();
+  }
+
+  Future<void> _stopAll() async {
+    final bleService = ref.read(bleServiceProvider);
+    // Arrêt de tous les moteurs sélectionnés
+    bleService.sendCommand(BleProtocol.stopCommand());
+    // Log session to Firebase
+    final startTime = ref.read(sessionStartTimeProvider);
+    final intensity = ref.read(masterIntensityProvider);
+    await ref.read(sessionServiceProvider).logCurrentSession(
+      startTime: startTime,
+      meanIntensity: intensity,
+    );
+    ref.read(sessionStartTimeProvider.notifier).state = null;
+    ref.invalidate(sessionHistoryProvider);
+
+    setState(() => _selectedMotors.clear());
+    ref.read(activeMotorsProvider.notifier).state = {};
+    ref.read(motorsRunningProvider.notifier).state = false;
+    HapticFeedback.mediumImpact();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final textPrimary = isDark ? const Color(0xFFE0E0E0) : AppColors.textPrimary;
-    final textSecondary = isDark ? const Color(0xFF9E9E9E) : AppColors.textSecondary;
+    final textPrimary =
+        isDark ? const Color(0xFFE0E0E0) : AppColors.textPrimary;
+    final textSecondary =
+        isDark ? const Color(0xFF9E9E9E) : AppColors.textSecondary;
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
     return SafeArea(
       top: false,
       bottom: false,
-      child: Column(
-        children: [
-          // ── En-tête ────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Contrôle Manuel',
-                  style: GoogleFonts.poppins(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: textPrimary,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── En-tête ────────────────────────────────────────
+            Text(
+              'Contrôle Manuel',
+              style: GoogleFonts.poppins(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Sélectionnez les moteurs à activer',
+              style:
+                  GoogleFonts.poppins(fontSize: 14, color: textSecondary),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Toggle multi-sélection ─────────────────────────
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF2A2A2A)
+                    : AppColors.backgroundAlt,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  _ModeTab(
+                    label: 'Simple',
+                    icon: LucideIcons.mousePointer,
+                    isSelected: !_multiSelect,
+                    isDark: isDark,
+                    onTap: () => setState(() {
+                      _multiSelect = false;
+                      // Garder au plus un moteur sélectionné
+                      if (_selectedMotors.length > 1) {
+                        final keep = _selectedMotors.first;
+                        _selectedMotors
+                          ..clear()
+                          ..add(keep);
+                      }
+                    }),
+                  ),
+                  _ModeTab(
+                    label: 'Multi-sélection',
+                    icon: LucideIcons.layers,
+                    isSelected: _multiSelect,
+                    isDark: isDark,
+                    onTap: () => setState(() => _multiSelect = true),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Grille des moteurs 5×3 ─────────────────────────
+            Text(
+              'GRILLE DORSALE',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: textSecondary.withValues(alpha: 0.6),
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _MotorGrid(
+              selectedMotors: _selectedMotors,
+              onTapMotor: _toggleMotor,
+              cardColor: cardColor,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              isDark: isDark,
+            ),
+            const SizedBox(height: 20),
+
+            // ── Octets envoyés (debug) ─────────────────────────
+            _CommandPreview(
+              selectedMotors: _selectedMotors,
+              isDark: isDark,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              cardColor: cardColor,
+            ),
+            const SizedBox(height: 20),
+
+            // ── Bouton tout arrêter ────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: _selectedMotors.isEmpty ? null : _stopAll,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor:
+                      AppColors.error.withValues(alpha: 0.3),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Touchez le dos pour activer les moteurs',
-                  style: GoogleFonts.poppins(fontSize: 14, color: textSecondary),
+                icon: const Icon(LucideIcons.square, size: 18),
+                label: Text(
+                  'Tout arrêter',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(height: 14),
-                _ModeToggle(mode: mode, isDark: isDark),
-              ],
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-
-          // ── Zone interactive ───────────────────────────────
-          Expanded(
-            child: mode == _ControlMode.precision
-                ? const _BackInteractive()
-                : const _ScratchpadMode(),
-          ),
-
-          // ── Barre de statut ────────────────────────────────
-          const _MotorStatusBar(),
-          const SizedBox(height: 100),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
 // ══════════════════════════════════════════════════════════════
-// Toggle Précision / Dessin Libre
+// Tab de mode (Simple / Multi)
 // ══════════════════════════════════════════════════════════════
 
-class _ModeToggle extends ConsumerWidget {
-  final _ControlMode mode;
-  final bool isDark;
-  const _ModeToggle({required this.mode, required this.isDark});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A2A) : AppColors.backgroundAlt,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          _ToggleTab(
-            label: 'Précision',
-            icon: LucideIcons.crosshair,
-            isSelected: mode == _ControlMode.precision,
-            isDark: isDark,
-            onTap: () =>
-                ref.read(_controlModeProvider.notifier).state = _ControlMode.precision,
-          ),
-          _ToggleTab(
-            label: 'Dessin Libre',
-            icon: LucideIcons.penTool,
-            isSelected: mode == _ControlMode.dessinLibre,
-            isDark: isDark,
-            onTap: () =>
-                ref.read(_controlModeProvider.notifier).state = _ControlMode.dessinLibre,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToggleTab extends StatelessWidget {
+class _ModeTab extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isSelected;
   final bool isDark;
   final VoidCallback onTap;
 
-  const _ToggleTab({
+  const _ModeTab({
     required this.label,
     required this.icon,
     required this.isSelected,
@@ -210,15 +320,20 @@ class _ToggleTab extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                color: isSelected
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
               ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: GoogleFonts.poppins(
                   fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
                 ),
               ),
             ],
@@ -230,483 +345,320 @@ class _ToggleTab extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Mode Précision — Silhouette dorsale interactive
+// Grille 5×3 des moteurs
 // ══════════════════════════════════════════════════════════════
 
-class _BackInteractive extends ConsumerStatefulWidget {
-  const _BackInteractive();
+class _MotorGrid extends StatelessWidget {
+  final Set<int> selectedMotors;
+  final ValueChanged<int> onTapMotor;
+  final Color cardColor;
+  final Color textPrimary;
+  final Color textSecondary;
+  final bool isDark;
 
-  @override
-  ConsumerState<_BackInteractive> createState() => _BackInteractiveState();
-}
-
-class _BackInteractiveState extends ConsumerState<_BackInteractive> {
-  Offset? _touchPosition;
-
-  @override
-  Widget build(BuildContext context) {
-    final activeMotors = ref.watch(activeMotorsProvider);
-    final radius = ref.watch(activationRadiusProvider);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Center(
-        child: AspectRatio(
-          aspectRatio: 0.7,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final size = constraints.biggest;
-              return GestureDetector(
-                onScaleStart: (d) => _onTouch(d.localFocalPoint, size),
-                onScaleUpdate: (d) {
-                  _onTouch(d.localFocalPoint, size);
-                  if (d.pointerCount >= 2) {
-                    final newRadius = (d.scale * 1.0).clamp(0.5, 4.0);
-                    ref.read(activationRadiusProvider.notifier).state = newRadius;
-                  }
-                },
-                onScaleEnd: (_) => _onRelease(),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundAlt,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: CustomPaint(
-                    painter: _BackPainter(
-                      activeMotors: activeMotors,
-                      touchPosition: _touchPosition,
-                      activationRadius: radius,
-                    ),
-                    size: Size.infinite,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _onTouch(Offset localPos, Size size) {
-    final clampedPos = Offset(
-      localPos.dx.clamp(0.0, size.width),
-      localPos.dy.clamp(0.0, size.height),
-    );
-    final rel = Offset(clampedPos.dx / size.width, clampedPos.dy / size.height);
-    setState(() => _touchPosition = rel);
-
-    final radius = ref.read(activationRadiusProvider);
-    final master = ref.read(masterIntensityProvider);
-    final maxT = ref.read(maxIntensityThresholdProvider);
-    final effectiveMax = master.clamp(0.0, maxT);
-    final activationDist = 0.12 * radius;
-
-    final motors = <int, int>{};
-    for (int i = 0; i < _kMotorPositions.length; i++) {
-      final dist = (rel - _kMotorPositions[i]).distance;
-      if (dist < activationDist) {
-        final factor = 1.0 - (dist / activationDist);
-        motors[i] = BleProtocol.intensityToByte(effectiveMax * factor);
-      }
-    }
-
-    if (motors.isNotEmpty) {
-      ref.read(activeMotorsProvider.notifier).state = motors;
-      HapticFeedback.lightImpact();
-    }
-  }
-
-  void _onRelease() {
-    setState(() => _touchPosition = null);
-    ref.read(activeMotorsProvider.notifier).state = {};
-  }
-}
-
-// ── Peintre de la silhouette dorsale ─────────────────────────
-
-class _BackPainter extends CustomPainter {
-  final Map<int, int> activeMotors;
-  final Offset? touchPosition;
-  final double activationRadius;
-
-  _BackPainter({
-    required this.activeMotors,
-    required this.touchPosition,
-    required this.activationRadius,
+  const _MotorGrid({
+    required this.selectedMotors,
+    required this.onTapMotor,
+    required this.cardColor,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.isDark,
   });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-
-    // Silhouette du torse élargie
-    final torsoPath = Path()
-      ..moveTo(cx - size.width * 0.35, size.height * 0.05)
-      ..quadraticBezierTo(
-          cx - size.width * 0.42, size.height * 0.25,
-          cx - size.width * 0.40, size.height * 0.45)
-      ..quadraticBezierTo(
-          cx - size.width * 0.30, size.height * 0.68,
-          cx - size.width * 0.18, size.height * 0.82)
-      ..quadraticBezierTo(
-          cx - size.width * 0.08, size.height * 0.88,
-          cx, size.height * 0.86)
-      ..quadraticBezierTo(
-          cx + size.width * 0.08, size.height * 0.88,
-          cx + size.width * 0.18, size.height * 0.82)
-      ..quadraticBezierTo(
-          cx + size.width * 0.30, size.height * 0.68,
-          cx + size.width * 0.40, size.height * 0.45)
-      ..quadraticBezierTo(
-          cx + size.width * 0.42, size.height * 0.25,
-          cx + size.width * 0.35, size.height * 0.05)
-      ..quadraticBezierTo(
-          cx, size.height * 0.01,
-          cx - size.width * 0.35, size.height * 0.05)
-      ..close();
-
-    canvas.drawPath(
-      torsoPath,
-      Paint()
-        ..color = AppColors.primary.withValues(alpha: 0.07)
-        ..style = PaintingStyle.fill,
-    );
-    canvas.drawPath(
-      torsoPath,
-      Paint()
-        ..color = AppColors.primary.withValues(alpha: 0.18)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
-
-    // Colonne vertébrale
-    final spinePath = Path()
-      ..moveTo(cx, size.height * 0.04)
-      ..quadraticBezierTo(cx, size.height * 0.45, cx, size.height * 0.84);
-    canvas.drawPath(
-      spinePath,
-      Paint()
-        ..color = AppColors.primary.withValues(alpha: 0.08)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
-
-    // Moteurs
-    for (int i = 0; i < _kMotorPositions.length; i++) {
-      final pos = Offset(
-        _kMotorPositions[i].dx * size.width,
-        _kMotorPositions[i].dy * size.height,
-      );
-      final isActive = activeMotors.containsKey(i);
-      final intensity = isActive ? activeMotors[i]! / 255.0 : 0.0;
-
-      if (isActive) {
-        canvas.drawCircle(
-          pos,
-          18 * intensity + 8,
-          Paint()
-            ..color = AppColors.primary.withValues(alpha: 0.3 * intensity)
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 16 * intensity),
-        );
-      }
-
-      canvas.drawCircle(
-        pos,
-        14,
-        Paint()
-          ..color = isActive
-              ? AppColors.primary.withValues(alpha: 0.2 + 0.3 * intensity)
-              : AppColors.primary.withValues(alpha: 0.06),
-      );
-      canvas.drawCircle(
-        pos,
-        14,
-        Paint()
-          ..color = isActive
-              ? AppColors.primary.withValues(alpha: 0.5 + 0.5 * intensity)
-              : AppColors.primary.withValues(alpha: 0.15)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5,
-      );
-      canvas.drawCircle(
-        pos,
-        5,
-        Paint()
-          ..color = isActive
-              ? AppColors.primary.withValues(alpha: 0.6 + 0.4 * intensity)
-              : AppColors.primary.withValues(alpha: 0.2),
-      );
-
-      // Étiquette
-      final tp = TextPainter(
-        text: TextSpan(
-          text: _kMotorLabels[i],
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-            color: isActive
-                ? AppColors.primary.withValues(alpha: 0.9)
-                : AppColors.textSecondary.withValues(alpha: 0.5),
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(pos.dx - tp.width / 2, pos.dy + 18));
-    }
-
-    // Indicateur tactile
-    if (touchPosition != null) {
-      final tp = Offset(
-        touchPosition!.dx * size.width,
-        touchPosition!.dy * size.height,
-      );
-      final r = 12 * activationRadius + 8;
-      canvas.drawCircle(
-        tp,
-        r,
-        Paint()..color = AppColors.primary.withValues(alpha: 0.15),
-      );
-      canvas.drawCircle(
-        tp,
-        r,
-        Paint()
-          ..color = AppColors.primary.withValues(alpha: 0.3)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _BackPainter old) =>
-      old.activeMotors != activeMotors ||
-      old.touchPosition != touchPosition ||
-      old.activationRadius != activationRadius;
-}
-
-// ══════════════════════════════════════════════════════════════
-// Mode Dessin Libre (Scratchpad) — zone clippée
-// ══════════════════════════════════════════════════════════════
-
-class _ScratchpadMode extends ConsumerStatefulWidget {
-  const _ScratchpadMode();
-
-  @override
-  ConsumerState<_ScratchpadMode> createState() => _ScratchpadModeState();
-}
-
-class _ScratchpadModeState extends ConsumerState<_ScratchpadMode> {
-  final List<Offset> _points = [];
-
-  @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final canvasColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border:
+            Border.all(color: AppColors.divider.withValues(alpha: 0.2)),
+      ),
       child: Column(
         children: [
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final size = constraints.biggest;
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: GestureDetector(
-                    onPanStart: (d) => _onDraw(d.localPosition, size),
-                    onPanUpdate: (d) => _onDraw(d.localPosition, size),
-                    onPanEnd: (_) => _onRelease(),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: canvasColor,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: AppColors.divider.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: CustomPaint(
-                        painter: _ScratchPainter(points: _points),
-                        size: Size.infinite,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+          // Indicateur rangées
+          Row(
+            children: [
+              const Icon(LucideIcons.layoutGrid,
+                  size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                '5 rangées × 3 colonnes',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${selectedMotors.length}/15',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          TextButton.icon(
-            onPressed: () => setState(() => _points.clear()),
-            icon: const Icon(LucideIcons.eraser, size: 16),
-            label: Text('Effacer', style: GoogleFonts.poppins(fontSize: 13)),
+          const SizedBox(height: 16),
+          // Grille
+          for (int row = 0; row < 5; row++) ...[
+            if (row > 0) const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (int col = 0; col < 3; col++) ...[
+                  if (col > 0) const SizedBox(width: 10),
+                  _MotorButton(
+                    index: row * 3 + col,
+                    label: _kMotorLabels[row * 3 + col],
+                    isSelected:
+                        selectedMotors.contains(row * 3 + col),
+                    onTap: () => onTapMotor(row * 3 + col),
+                    isDark: isDark,
+                  ),
+                ],
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          // Légende
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _LegendDot(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  label: 'Inactif',
+                  textColor: textSecondary),
+              const SizedBox(width: 20),
+              _LegendDot(
+                  color: AppColors.primary,
+                  label: 'Actif',
+                  textColor: textSecondary),
+            ],
           ),
         ],
       ),
     );
   }
-
-  void _onDraw(Offset position, Size size) {
-    // Restreindre les points à l'intérieur de la zone
-    final clamped = Offset(
-      position.dx.clamp(0.0, size.width),
-      position.dy.clamp(0.0, size.height),
-    );
-    setState(() => _points.add(clamped));
-
-    final relPos = Offset(clamped.dx / size.width, clamped.dy / size.height);
-    final master = ref.read(masterIntensityProvider);
-    final motors = <int, int>{};
-
-    for (int i = 0; i < _kMotorPositions.length; i++) {
-      final dist = (relPos - _kMotorPositions[i]).distance;
-      if (dist < 0.2) {
-        final factor = 1.0 - (dist / 0.2);
-        motors[i] = BleProtocol.intensityToByte(master * factor);
-      }
-    }
-
-    if (motors.isNotEmpty) {
-      ref.read(activeMotorsProvider.notifier).state = motors;
-      HapticFeedback.selectionClick();
-    }
-  }
-
-  void _onRelease() {
-    ref.read(activeMotorsProvider.notifier).state = {};
-  }
 }
 
-class _ScratchPainter extends CustomPainter {
-  final List<Offset> points;
-  _ScratchPainter({required this.points});
+// ── Bouton moteur individuel ─────────────────────────────────
+
+class _MotorButton extends StatelessWidget {
+  final int index;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final bool isDark;
+
+  const _MotorButton({
+    required this.index,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    required this.isDark,
+  });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    if (points.isEmpty) {
-      final tp = TextPainter(
-        text: TextSpan(
-          text: 'Griffonnez ici !\nLes moteurs suivront votre dessin',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary.withValues(alpha: 0.4),
-            height: 1.5,
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: 0.15)
+              : isDark
+                  ? const Color(0xFF2A2A2A)
+                  : AppColors.backgroundAlt,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primary.withValues(alpha: 0.5)
+                : AppColors.divider.withValues(alpha: 0.3),
+            width: isSelected ? 2 : 1,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
-        textDirection: TextDirection.ltr,
-        textAlign: TextAlign.center,
-      )..layout(maxWidth: size.width * 0.7);
-      tp.paint(
-        canvas,
-        Offset((size.width - tp.width) / 2, (size.height - tp.height) / 2),
-      );
-      return;
-    }
-
-    final linePaint = Paint()
-      ..color = AppColors.primary.withValues(alpha: 0.5)
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (int i = 1; i < points.length; i++) {
-      path.lineTo(points[i].dx, points[i].dy);
-    }
-    canvas.drawPath(path, linePaint);
-
-    final dotPaint = Paint()
-      ..color = AppColors.primary.withValues(alpha: 0.3)
-      ..style = PaintingStyle.fill;
-    for (final p in points) {
-      canvas.drawCircle(p, 2, dotPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ScratchPainter old) =>
-      old.points.length != points.length;
-}
-
-// ══════════════════════════════════════════════════════════════
-// Barre de statut des moteurs
-// ══════════════════════════════════════════════════════════════
-
-class _MotorStatusBar extends ConsumerWidget {
-  const _MotorStatusBar();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final activeMotors = ref.watch(activeMotorsProvider);
-    final radius = ref.watch(activationRadiusProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-
-    final count = activeMotors.length;
-    final avgIntensity = activeMotors.isEmpty
-        ? 0
-        : (activeMotors.values.reduce((a, b) => a + b) / count).round();
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppColors.divider.withValues(alpha: 0.2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isSelected ? LucideIcons.zap : LucideIcons.circle,
+              size: 24,
+              color: isSelected
+                  ? AppColors.primary
+                  : AppColors.textSecondary.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight:
+                    isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
+              ),
+            ),
+          ],
         ),
       ),
-      child: Row(
+    );
+  }
+}
+
+// ── Légende ──────────────────────────────────────────────────
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  final Color textColor;
+
+  const _LegendDot({
+    required this.color,
+    required this.label,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: GoogleFonts.poppins(fontSize: 11, color: textColor),
+        ),
+      ],
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Aperçu des commandes envoyées (debug)
+// ══════════════════════════════════════════════════════════════
+
+class _CommandPreview extends StatelessWidget {
+  final Set<int> selectedMotors;
+  final bool isDark;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color cardColor;
+
+  const _CommandPreview({
+    required this.selectedMotors,
+    required this.isDark,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.cardColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border:
+            Border.all(color: AppColors.divider.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: count > 0
-                  ? AppColors.primary.withValues(alpha: 0.12)
-                  : AppColors.backgroundAlt,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              count > 0 ? LucideIcons.activity : LucideIcons.hand,
-              size: 18,
-              color: count > 0 ? AppColors.primary : AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  count > 0
-                      ? '$count moteur${count > 1 ? 's' : ''} actif${count > 1 ? 's' : ''}'
-                      : 'Touchez le dos pour stimuler',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
+          Row(
+            children: [
+              const Icon(LucideIcons.terminal,
+                  size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Octets BLE',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: textPrimary,
                 ),
-                Text(
-                  count > 0
-                      ? 'Intensité : ${(avgIntensity / 255 * 100).round()}% — Rayon : ${radius.toStringAsFixed(1)}x'
-                      : 'Pincez pour modifier la zone',
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+          const SizedBox(height: 10),
+          if (selectedMotors.isEmpty)
+            Text(
+              'Aucun moteur sélectionné',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: textSecondary,
+              ),
+            )
+          else
+            ...selectedMotors.map((i) {
+              final motorId =
+                  BleProtocol.motorGrid[i ~/ 3][i % 3];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary
+                            .withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _kMotorLabels[i],
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '→  0x${BleProtocol.cmdMotor.toRadixString(16).padLeft(2, '0').toUpperCase()}  '
+                      '0x${motorId.toRadixString(16).padLeft(2, '0').toUpperCase()}  '
+                      '0xFF',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: textPrimary,
+                        fontFeatures: [
+                          const FontFeature.tabularFigures()
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
