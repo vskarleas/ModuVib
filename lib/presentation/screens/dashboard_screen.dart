@@ -381,24 +381,29 @@ class _MasterIntensitySlider extends ConsumerWidget {
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(LucideIcons.gauge, size: 20, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Puissance globale',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: textPrimary,
-                    ),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(LucideIcons.gauge, size: 20, color: AppColors.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Puissance globale',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: textPrimary,
                   ),
-                ],
+                ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -406,7 +411,7 @@ class _MasterIntensitySlider extends ConsumerWidget {
                 child: Text(
                   '${(intensity * 100).round()}%',
                   style: GoogleFonts.poppins(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.primary,
                   ),
@@ -705,21 +710,40 @@ class _AnalyticsChart extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.barChart3, size: 18, color: AppColors.primary),
-              const SizedBox(width: 8),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(LucideIcons.barChart3, size: 20, color: AppColors.primary),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Fréquence par heure',
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: textPrimary,
                   ),
                 ),
               ),
-              Text(
-                '${sessions.length} sessions',
-                style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${sessions.length}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
               ),
             ],
           ),

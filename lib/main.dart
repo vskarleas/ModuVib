@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
@@ -36,6 +37,10 @@ void main() async {
     ),
   );
 
+  // Load persisted settings
+  final prefs = await SharedPreferences.getInstance();
+  final savedThreshold = prefs.getDouble('max_intensity_threshold') ?? 0.8;
+
   // Check for active Firebase session
   final currentUser = FirebaseAuth.instance.currentUser;
 
@@ -51,6 +56,7 @@ void main() async {
     ProviderScope(
       overrides: [
         initialRouteProvider.overrideWith((ref) => startRoute),
+        maxIntensityThresholdProvider.overrideWith((ref) => savedThreshold),
       ],
       child: const ModuVibApp(),
     ),

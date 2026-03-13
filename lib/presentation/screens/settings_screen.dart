@@ -85,14 +85,16 @@ class SettingsScreen extends ConsumerWidget {
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
+              onTap: () => _showBatterySheet(context, ref, isDark, textPrimary, textSecondary),
             ),
             _SettingsTile(
               icon: LucideIcons.refreshCw,
               title: 'Firmware',
-              subtitle: 'v2.1.3',
+              subtitle: 'v3.0',
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
+              onTap: () => _showFirmwareSheet(context, isDark, textPrimary, textSecondary),
             ),
             const SizedBox(height: 28),
 
@@ -104,11 +106,14 @@ class SettingsScreen extends ConsumerWidget {
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
-              onChanged: (v) {
+              onChanged: (v) async {
                 ref.read(maxIntensityThresholdProvider.notifier).state = v;
                 if (ref.read(masterIntensityProvider) > v) {
                   ref.read(masterIntensityProvider.notifier).state = v;
                 }
+                // Persist to SharedPreferences
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setDouble('max_intensity_threshold', v);
               },
             ),
             const SizedBox(height: 28),
@@ -272,6 +277,364 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  // ── Battery Bottom Sheet ──────────────────────────────────────
+  void _showBatterySheet(
+    BuildContext context,
+    WidgetRef ref,
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final battery = ref.read(batteryLevelProvider);
+    final voltage = ref.read(vestVoltageProvider);
+    final intensity = ref.read(masterIntensityProvider);
+    final bleState = ref.read(bleConnectionProvider);
+    final isConnected = bleState == BleConnectionState.connected;
+    final remaining = BleProtocol.estimateRemainingMinutes(battery, intensity);
+    final hours = remaining ~/ 60;
+    final mins = remaining % 60;
+
+    // Battery status
+    final Color batteryColor;
+    final IconData batteryIcon;
+    final String statusText;
+    if (!isConnected) {
+      batteryColor = textSecondary;
+      batteryIcon = LucideIcons.batteryWarning;
+      statusText = 'Appareil non connecté';
+    } else if (battery <= 10) {
+      batteryColor = AppColors.error;
+      batteryIcon = LucideIcons.batteryWarning;
+      statusText = 'Critique — rechargez maintenant';
+    } else if (battery <= 25) {
+      batteryColor = Colors.orange;
+      batteryIcon = LucideIcons.batteryLow;
+      statusText = 'Faible';
+    } else if (battery <= 50) {
+      batteryColor = Colors.amber;
+      batteryIcon = LucideIcons.batteryMedium;
+      statusText = 'Moyen';
+    } else {
+      batteryColor = Colors.green;
+      batteryIcon = LucideIcons.batteryFull;
+      statusText = 'Bon';
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Container(
+        color: bgColor,
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: textSecondary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Row(
+              children: [
+                Icon(batteryIcon, size: 24, color: batteryColor),
+                const SizedBox(width: 12),
+                Text(
+                  'Batterie',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: batteryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    statusText,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: batteryColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            // Progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: isConnected ? battery / 100.0 : 0,
+                minHeight: 10,
+                backgroundColor: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation<Color>(batteryColor),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Info rows
+            _BatteryInfoRow(
+              label: 'Niveau',
+              value: isConnected ? '$battery%' : '--',
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+            _BatteryInfoRow(
+              label: 'Tension estimée',
+              value: isConnected ? '${voltage.toStringAsFixed(2)} V' : '--',
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+            _BatteryInfoRow(
+              label: 'Autonomie restante',
+              value: isConnected
+                  ? (hours > 0 ? '~${hours}h ${mins}min' : '~$mins min')
+                  : '--',
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+            _BatteryInfoRow(
+              label: 'Intensité actuelle',
+              value: '${(intensity * 100).round()}%',
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+            _BatteryInfoRow(
+              label: 'Type de batterie',
+              value: 'Powerbank 4.7V',
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+            const SizedBox(height: 16),
+            // Note
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.info, size: 16, color: AppColors.primary.withValues(alpha: 0.7)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'L\'autonomie est une estimation basée sur l\'intensité actuelle. '
+                      'Elle peut varier selon le programme utilisé.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Firmware Bottom Sheet ────────────────────────────────────────
+  void _showFirmwareSheet(
+    BuildContext context,
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.85,
+        builder: (context, scrollController) {
+          return Container(
+            color: bgColor,
+            child: Column(
+              children: [
+                // Drag handle + header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: textSecondary.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(LucideIcons.cpu, size: 20, color: AppColors.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Firmware',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: textPrimary,
+                                ),
+                              ),
+                              Text(
+                                'Version actuelle : v3.0',
+                                style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'À jour',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Divider(color: textSecondary.withValues(alpha: 0.2), height: 1),
+                    ],
+                  ),
+                ),
+                // Version history
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                    children: [
+                      Text(
+                        'Historique des versions',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _FirmwareVersionTile(
+                        version: 'v3.0',
+                        date: 'Mars 2026',
+                        isCurrent: true,
+                        changes: const [
+                          'Contrôle manuel avec grille moteurs 5×3',
+                          'Protocole BLE 3 octets complet',
+                          'Programmes de vibration (Vague, Pluie, Impulsion, Cercle)',
+                          'Journal d\'utilisation avec Firebase',
+                          'Sécurité biométrique et PIN',
+                        ],
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                      ),
+                      _FirmwareVersionTile(
+                        version: 'v2.1',
+                        date: 'Février 2026',
+                        changes: const [
+                          'Support base de données Firebase',
+                          'Authentification FaceID / TouchID',
+                          'Services Bluetooth créés et connectés à l\'interface',
+                          'Suppression des options codées en dur',
+                        ],
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                      ),
+                      _FirmwareVersionTile(
+                        version: 'v1.0',
+                        date: 'Janvier 2026',
+                        changes: const [
+                          'Première itération de l\'interface',
+                          'Mise en place de l\'architecture de l\'application',
+                        ],
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                      ),
+                      const SizedBox(height: 16),
+                      // ESP32 info
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Informations matériel',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _FirmwareInfoRow(label: 'Microcontrôleur', value: 'XIAO ESP32C3', textSecondary: textSecondary),
+                            _FirmwareInfoRow(label: 'Grille moteurs', value: '5 × 3 (15 moteurs)', textSecondary: textSecondary),
+                            _FirmwareInfoRow(label: 'Alimentation', value: 'Powerbank 4.7V', textSecondary: textSecondary),
+                            _FirmwareInfoRow(label: 'Communication', value: 'BLE (Bluetooth Low Energy)', textSecondary: textSecondary),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _showLicensesBottomSheet(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -286,9 +649,9 @@ class SettingsScreen extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
         builder: (context, scrollController) {
           return Container(
             color: bgColor,
@@ -543,106 +906,100 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) {
-          return Container(
-            color: bgColor,
-            child: Column(
+      builder: (ctx) => Container(
+        color: bgColor,
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: textSecondary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Row(
               children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Mon profil',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: textPrimary,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(LucideIcons.x),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
+                Text(
+                  'Mon profil',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: textPrimary,
                   ),
                 ),
-                Expanded(
-                  child: ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [
-                      // ── Section: Nom ──
-                      _ProfileSectionHeader(
-                        icon: LucideIcons.userCircle,
-                        title: 'Nom et prénom',
-                        textPrimary: textPrimary,
-                      ),
-                      const SizedBox(height: 12),
-                      _ProfileActionTile(
-                        label: 'Prénom',
-                        value: _firstName.isEmpty ? 'Non défini' : _firstName,
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                        isDark: widget.isDark,
-                        onTap: () => _showNameEditDialog(context),
-                      ),
-                      _ProfileActionTile(
-                        label: 'Nom',
-                        value: _lastName.isEmpty ? 'Non défini' : _lastName,
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                        isDark: widget.isDark,
-                        onTap: () => _showNameEditDialog(context),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // ── Section: Email ──
-                      _ProfileSectionHeader(
-                        icon: LucideIcons.mail,
-                        title: 'Adresse email',
-                        textPrimary: textPrimary,
-                      ),
-                      const SizedBox(height: 12),
-                      _ProfileActionTile(
-                        label: 'Email',
-                        value: FirebaseAuth.instance.currentUser?.email ?? '--',
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                        isDark: widget.isDark,
-                        onTap: () => _showEmailChangeDialog(context),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // ── Section: Mot de passe ──
-                      _ProfileSectionHeader(
-                        icon: LucideIcons.lock,
-                        title: 'Mot de passe',
-                        textPrimary: textPrimary,
-                      ),
-                      const SizedBox(height: 12),
-                      _ProfileActionTile(
-                        label: 'Mot de passe',
-                        value: '••••••••',
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                        isDark: widget.isDark,
-                        onTap: () => _showPasswordChangeDialog(context),
-                      ),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(LucideIcons.x),
+                  onPressed: () => Navigator.pop(ctx),
                 ),
               ],
             ),
-          );
-        },
+            const SizedBox(height: 12),
+            // ── Section: Nom ──
+            _ProfileSectionHeader(
+              icon: LucideIcons.userCircle,
+              title: 'Nom et prénom',
+              textPrimary: textPrimary,
+            ),
+            const SizedBox(height: 12),
+            _ProfileActionTile(
+              label: 'Prénom',
+              value: _firstName.isEmpty ? 'Non défini' : _firstName,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              isDark: widget.isDark,
+              onTap: () => _showNameEditDialog(context),
+            ),
+            _ProfileActionTile(
+              label: 'Nom',
+              value: _lastName.isEmpty ? 'Non défini' : _lastName,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              isDark: widget.isDark,
+              onTap: () => _showNameEditDialog(context),
+            ),
+            const SizedBox(height: 24),
+
+            // ── Section: Email ──
+            _ProfileSectionHeader(
+              icon: LucideIcons.mail,
+              title: 'Adresse email',
+              textPrimary: textPrimary,
+            ),
+            const SizedBox(height: 12),
+            _ProfileActionTile(
+              label: 'Email',
+              value: FirebaseAuth.instance.currentUser?.email ?? '--',
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              isDark: widget.isDark,
+              onTap: () => _showEmailChangeDialog(context),
+            ),
+            const SizedBox(height: 24),
+
+            // ── Section: Mot de passe ──
+            _ProfileSectionHeader(
+              icon: LucideIcons.lock,
+              title: 'Mot de passe',
+              textPrimary: textPrimary,
+            ),
+            const SizedBox(height: 12),
+            _ProfileActionTile(
+              label: 'Mot de passe',
+              value: '••••••••',
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              isDark: widget.isDark,
+              onTap: () => _showPasswordChangeDialog(context),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1466,6 +1823,207 @@ class _LicenseTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Battery Sheet Helper
+// ══════════════════════════════════════════════════════════════
+
+class _BatteryInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color textPrimary;
+  final Color textSecondary;
+
+  const _BatteryInfoRow({
+    required this.label,
+    required this.value,
+    required this.textPrimary,
+    required this.textSecondary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.poppins(fontSize: 13, color: textSecondary),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Firmware Sheet Helpers
+// ══════════════════════════════════════════════════════════════
+
+class _FirmwareVersionTile extends StatelessWidget {
+  final String version;
+  final String date;
+  final bool isCurrent;
+  final List<String> changes;
+  final Color textPrimary;
+  final Color textSecondary;
+
+  const _FirmwareVersionTile({
+    required this.version,
+    required this.date,
+    this.isCurrent = false,
+    required this.changes,
+    required this.textPrimary,
+    required this.textSecondary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Timeline dot + line
+          Column(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isCurrent ? AppColors.primary : textSecondary.withValues(alpha: 0.3),
+                  border: isCurrent
+                      ? Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 3)
+                      : null,
+                ),
+              ),
+              Container(
+                width: 2,
+                height: 80,
+                color: textSecondary.withValues(alpha: 0.15),
+              ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          // Content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      version,
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: isCurrent ? AppColors.primary : textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      date,
+                      style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
+                    ),
+                    if (isCurrent) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'actuelle',
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ...changes.map((c) => Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Container(
+                              width: 4,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: textSecondary.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              c,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: textSecondary,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FirmwareInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color textSecondary;
+
+  const _FirmwareInfoRow({
+    required this.label,
+    required this.value,
+    required this.textSecondary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: GoogleFonts.poppins(fontSize: 12, color: textSecondary)),
+          Text(
+            value,
+            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+        ],
       ),
     );
   }
