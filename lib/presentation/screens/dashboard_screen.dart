@@ -13,6 +13,29 @@ import '../../core/services/ble_protocol.dart';
 // DASHBOARD SCREEN — Tableau de bord ModuVib
 // ══════════════════════════════════════════════════════════════
 
+void _showNotConnected(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          const Icon(LucideIcons.bluetoothOff, color: Colors.white, size: 18),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              'Appareil non connecté — commande non envoyée',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: Colors.orange.shade700,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      duration: const Duration(seconds: 3),
+    ),
+  );
+}
+
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -66,7 +89,17 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // ── Autonomie estimée ──────────────────────────────
-            const _BatteryEstimation(),
+            Text(
+              'AUTONOMIE',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: textSecondary.withValues(alpha: 0.6),
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _BatteryEstimation(isDark: isDark),
             const SizedBox(height: 24),
 
             // ── Journal d'utilisation ──────────────────────────
@@ -352,7 +385,7 @@ class _MasterIntensitySlider extends ConsumerWidget {
               max: maxThreshold,
               onChanged: (v) {
                 ref.read(masterIntensityProvider.notifier).state = v;
-                // MAJ intensité ESP32 en temps réel si moteurs actifs
+                // MAJ intensité de tous les moteurs en temps réel si actifs
                 if (ref.read(motorsRunningProvider)) {
                   ref.read(bleServiceProvider).sendCommand(
                     BleProtocol.masterIntensityCommand(
@@ -387,16 +420,35 @@ class _MasterIntensitySlider extends ConsumerWidget {
             width: double.infinity,
             height: 48,
             child: ElevatedButton.icon(
-              onPressed: () {
+              onPressed: () async {
                 final bleService = ref.read(bleServiceProvider);
                 if (motorsRunning) {
-                  bleService.sendCommand(BleProtocol.stopCommand());
-                  ref.read(motorsRunningProvider.notifier).state = false;
-                } else {
-                  final byte = BleProtocol.intensityToByte(intensity);
+                  // Master OFF: [0x04, 0x00, 0x00] — coupe tous les moteurs
                   bleService.sendCommand(
+                    BleProtocol.masterIntensityCommand(0x00),
+                  );
+                  // Log session to Firebase
+                  final startTime = ref.read(sessionStartTimeProvider);
+                  await ref.read(sessionServiceProvider).logCurrentSession(
+                    startTime: startTime,
+                    meanIntensity: intensity,
+                  );
+                  ref.read(sessionStartTimeProvider.notifier).state = null;
+                  ref.read(motorsRunningProvider.notifier).state = false;
+                  // Refresh chart
+                  ref.invalidate(sessionHistoryProvider);
+                } else {
+                  // Master ON: [0x04, 0x00, intensité] — active tous les moteurs
+                  final byte = BleProtocol.intensityToByte(intensity);
+                  final sent = await bleService.sendCommand(
                     BleProtocol.masterIntensityCommand(byte),
                   );
+                  if (!sent) {
+                    if (context.mounted) _showNotConnected(context);
+                    return;
+                  }
+                  ref.read(sessionStartTimeProvider.notifier).state =
+                      DateTime.now();
                   ref.read(motorsRunningProvider.notifier).state = true;
                   ref.read(lastSessionTimeProvider.notifier).state =
                       DateTime.now();
@@ -438,7 +490,8 @@ class _MasterIntensitySlider extends ConsumerWidget {
 // ══════════════════════════════════════════════════════════════
 
 class _BatteryEstimation extends ConsumerWidget {
-  const _BatteryEstimation();
+  final bool isDark;
+  const _BatteryEstimation({required this.isDark});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -447,62 +500,117 @@ class _BatteryEstimation extends ConsumerWidget {
     final bleState = ref.watch(bleConnectionProvider);
     final isConnected = bleState == BleConnectionState.connected;
     final remaining = BleProtocol.estimateRemainingMinutes(battery, intensity);
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textPrimary = isDark ? const Color(0xFFE0E0E0) : AppColors.textPrimary;
+    final textSecondary = isDark ? const Color(0xFF9E9E9E) : AppColors.textSecondary;
 
     final hours = remaining ~/ 60;
     final mins = remaining % 60;
     final timeStr = hours > 0 ? '${hours}h ${mins}min' : '$mins min';
 
+    // Battery level logic
+    final IconData batteryIcon;
+    final Color batteryColor;
+    final String statusLabel;
+    final String statusMessage;
+
+    if (!isConnected) {
+      batteryIcon = LucideIcons.batteryWarning;
+      batteryColor = textSecondary;
+      statusLabel = '--';
+      statusMessage = 'Appareil non connecté';
+    } else if (battery <= 10) {
+      batteryIcon = LucideIcons.batteryWarning;
+      batteryColor = AppColors.error;
+      statusLabel = '$battery%';
+      statusMessage = 'Batterie critique — rechargez maintenant';
+    } else if (battery <= 25) {
+      batteryIcon = LucideIcons.batteryLow;
+      batteryColor = Colors.orange;
+      statusLabel = '$battery%';
+      statusMessage = 'Batterie faible — environ $timeStr restantes';
+    } else if (battery <= 50) {
+      batteryIcon = LucideIcons.batteryMedium;
+      batteryColor = Colors.amber;
+      statusLabel = '$battery%';
+      statusMessage = 'Environ $timeStr à ${(intensity * 100).round()}% d\'intensité';
+    } else {
+      batteryIcon = LucideIcons.batteryFull;
+      batteryColor = Colors.green;
+      statusLabel = '$battery%';
+      statusMessage = 'Environ $timeStr à ${(intensity * 100).round()}% d\'intensité';
+    }
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary.withValues(alpha: 0.06),
-            AppColors.primaryLight.withValues(alpha: 0.03),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.2)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              LucideIcons.batteryCharging,
-              size: 22,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: batteryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(batteryIcon, size: 20, color: batteryColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
                   'Autonomie estimée',
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: textPrimary,
                   ),
                 ),
-                Text(
-                  isConnected
-                      ? 'Environ $timeStr à ${(intensity * 100).round()}% d\'intensité'
-                      : 'Appareil non connecté',
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: batteryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  statusLabel,
                   style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: batteryColor,
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Battery progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: isConnected ? battery / 100.0 : 0,
+              minHeight: 8,
+              backgroundColor: isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(batteryColor),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            statusMessage,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: textSecondary,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
