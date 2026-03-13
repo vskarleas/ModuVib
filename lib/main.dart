@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
@@ -37,17 +36,15 @@ void main() async {
     ),
   );
 
-  // Check for remember me + active Firebase session
-  final prefs = await SharedPreferences.getInstance();
-  final rememberMe = prefs.getBool('rememberMe') ?? false;
+  // Check for active Firebase session
   final currentUser = FirebaseAuth.instance.currentUser;
-  final hasFirebaseUser = currentUser != null;
 
   String startRoute = AppRoutes.login;
-  if (rememberMe && hasFirebaseUser) {
+  if (currentUser != null) {
     final security = LocalSecurityService();
     final setupComplete = await security.isSecuritySetupComplete(currentUser.uid);
-    startRoute = setupComplete ? AppRoutes.lock : AppRoutes.home;
+    // Security set up → lock screen (PIN / Face ID), otherwise → setup flow
+    startRoute = setupComplete ? AppRoutes.lock : AppRoutes.securitySetup;
   }
 
   runApp(

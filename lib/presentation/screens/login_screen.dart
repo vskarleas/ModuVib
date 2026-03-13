@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/router/app_router.dart';
@@ -33,8 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorText;
   bool _emailError = false;
   bool _passwordError = false;
-  bool _rememberMe = false;
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -63,11 +60,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text,
         _passwordController.text,
       );
-      if (_rememberMe) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('rememberMe', true);
-      }
-
       final uid = FirebaseAuth.instance.currentUser?.uid;
       String destination = AppRoutes.home;
       if (uid != null) {
