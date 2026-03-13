@@ -57,6 +57,25 @@ class SessionService {
       );
     }).toList();
   }
+
+  /// Log the current session using the start time from the provider.
+  /// Returns true if a session was logged.
+  Future<bool> logCurrentSession({
+    required DateTime? startTime,
+    required double meanIntensity,
+    String? patternUsed,
+  }) async {
+    if (startTime == null) return false;
+    final duration = DateTime.now().difference(startTime).inMinutes;
+    if (duration < 1) return false; // ignore sessions < 1 min
+    await logSession(
+      startTime: startTime,
+      durationMinutes: duration,
+      meanIntensity: meanIntensity,
+      patternUsed: patternUsed,
+    );
+    return true;
+  }
 }
 
 /// Immutable session record read from Firestore
