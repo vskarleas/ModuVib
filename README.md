@@ -10,7 +10,63 @@
 * [X] Update the manual screen
 * [X] Write the code for the ESP32 in order to communicate under the name ModuVib
 * [X] Fix login issue with phone number. It says on android Error d'autentication (unknown). On Ios it just tcuks
-* [ ] Integrate the codes found on the notes section that Dounia sent me in the different actiosn of the app.
+* [X] Integrate the codes found on the notes section that Dounia sent me in the different actiosn of the app.
+
+## BLE Protocol — Commandes 3 octets `[CMD, TARGET, VALUE]`
+
+Chaque commande envoyée par l'app Flutter au ESP32 est composée de 3 octets.
+
+### Commandes
+
+| CMD | Nom | TARGET | VALUE | Exemple (hex) | Source dans l'app |
+|-----|-----|--------|-------|----------------|-------------------|
+| `0x01` | Moteur individuel | ID moteur (0x01–0x0F) | Intensité (0x00=OFF, 0x01–0xFF=ON) | `01 05 FF` → Moteur 5 ON pleine puissance | Contrôle Manuel |
+| `0x02` | Pattern | ID pattern (voir ci-dessous) | Intensité (0x00–0xFF) | `02 01 BF` → Vague à 75% | Programmes |
+| `0x03` | Arrêt d'urgence | `0x00` | `0x00` | `03 00 00` | Bouton STOP (top bar) |
+| `0x04` | Master (tous moteurs) | `0x00` | Intensité (0x00=OFF, 0x01–0xFF=ON) | `04 00 FF` → Tous les moteurs ON | Dashboard (Activer vibrations) |
+| `0x05` | Ping | `0x00` | `0x00` | `05 00 00` | Keep-alive |
+| `0x06` | Demande batterie | `0x00` | `0x00` | `06 00 00` | Polling batterie |
+
+### Identifiants moteurs (grille dorsale 5×3)
+
+| Rangée | Gauche | Centre | Droite |
+|--------|--------|--------|--------|
+| 1 (haut) | M1 = `0x01` | M2 = `0x02` | M3 = `0x03` |
+| 2 | M4 = `0x04` | M5 = `0x05` | M6 = `0x06` |
+| 3 (milieu) | M7 = `0x07` | M8 = `0x08` | M9 = `0x09` |
+| 4 | M10 = `0x0A` | M11 = `0x0B` | M12 = `0x0C` |
+| 5 (bas) | M13 = `0x0D` | M14 = `0x0E` | M15 = `0x0F` |
+
+### Identifiants patterns
+
+| ID | Nom | Description |
+|----|-----|-------------|
+| `0x01` | Vague | Rangées activées de haut en bas |
+| `0x02` | Pluie | Moteurs aléatoires, intensité variable |
+| `0x03` | Impulsion | Tous les moteurs ON/OFF en alternance |
+| `0x04` | Cercle | Rotation sur le périmètre de la grille |
+
+### Réponses ESP32 → App (notifications BLE)
+
+| Réponse | Signification |
+|---------|---------------|
+| `CONNECTED` | App connectée |
+| `MOTOR_X_ON_Y` | Moteur X activé à intensité Y |
+| `MOTOR_X_OFF` | Moteur X désactivé |
+| `PATTERN_VAGUE` | Pattern Vague lancé |
+| `PATTERN_PLUIE` | Pattern Pluie lancé |
+| `PATTERN_IMPULSION` | Pattern Impulsion lancé |
+| `PATTERN_CERCLE` | Pattern Cercle lancé |
+| `STOP_OK` | Arrêt d'urgence exécuté |
+| `MASTER_ON_Y` | Tous les moteurs ON à intensité Y |
+| `MASTER_OFF` | Tous les moteurs coupés |
+| `PONG` | Réponse au ping |
+| `BAT_XX` | Niveau batterie (XX%) |
+| `ERR_LEN` | Commande invalide (taille ≠ 3) |
+
+### Mode test
+
+Le fichier `esp32-code/code.ino` contient un flag `TEST_MODE` (par défaut `true`). En mode test, les commandes sont reçues et affichées dans le Serial Monitor mais les GPIOs ne sont pas pilotés. Passer à `false` quand les moteurs sont physiquement branchés.
 
 ## Notes
 
@@ -19,12 +75,3 @@
   * Protocol has all the motors details and hard coded options like the proposed aplitudes fo rthe programmes page
   * Servic eis for all teh communication part. There is battery module that allows to simply reccurently to check the current that is available on the batetry. And also has all the callbacks and connection requests to the ESP32 module using the UUID that were hardcoded using the Arduino IDE.
 * Teh user can now sign up with their email and then he is asked for their phone number. Then he can use either the phone numer of the password/email method. FaceID can be an option as well
-* Envoie ces 3 octets :
-  * moteur 1 activé
-    01 01 FF
-  * moteur 1 désactivé
-    01 01 00
-  * stop
-    03 00 00
-  * ping
-    05 00 00
