@@ -222,6 +222,49 @@ class _SystemStatusCard extends ConsumerWidget {
               ),
             ],
           ),
+          // ── Connect button (only when disconnected) ──
+          if (!isConnected) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton.icon(
+                onPressed: bleState == BleConnectionState.connecting
+                    ? null
+                    : () {
+                        final bleService = ref.read(bleServiceProvider);
+                        bleService.connect();
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: bleState == BleConnectionState.connecting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(LucideIcons.bluetooth, size: 18),
+                label: Text(
+                  bleState == BleConnectionState.connecting
+                      ? 'Connexion en cours...'
+                      : 'Connecter l\'appareil',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
