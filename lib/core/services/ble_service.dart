@@ -140,12 +140,16 @@ class BleService {
 
   // ── Envoi de commandes ───────────────────────────────────────────────────
 
-  /// Envoie une commande brute (3 octets selon BleProtocol)
-  Future<void> sendCommand(Uint8List command) async {
-    if (_commandChar == null || !_isConnected) return;
+  /// Envoie une commande brute (3 octets selon BleProtocol).
+  /// Retourne `true` si la commande a été envoyée, `false` sinon.
+  Future<bool> sendCommand(Uint8List command) async {
+    if (_commandChar == null || !_isConnected) return false;
     try {
       await _commandChar!.write(command.toList(), withoutResponse: true);
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   // ── Batterie ─────────────────────────────────────────────────────────────
