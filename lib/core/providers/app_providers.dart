@@ -68,6 +68,9 @@ final lastSessionTimeProvider = StateProvider<DateTime?>(
   (ref) => DateTime.now().subtract(const Duration(minutes: 20)),
 );
 
+/// Heure de début de la session en cours (null = pas de session active)
+final sessionStartTimeProvider = StateProvider<DateTime?>((ref) => null);
+
 // ── Patterns ────────────────────────────────────────────────────────────────
 final activePatternProvider = StateProvider<String?>((ref) => null);
 final patternTimerSecondsProvider = StateProvider<int?>((ref) => null);
@@ -153,6 +156,21 @@ class PatternTimerNotifier extends StateNotifier<void> {
   /// Arrête complètement le pattern et le timer
   void stopPattern() {
     stopTimer();
+
+    // Log session to Firebase before clearing state
+    final startTime = ref.read(sessionStartTimeProvider);
+    if (startTime != null) {
+      final intensity = ref.read(masterIntensityProvider);
+      final pattern = ref.read(activePatternProvider);
+      ref.read(sessionServiceProvider).logCurrentSession(
+        startTime: startTime,
+        meanIntensity: intensity,
+        patternUsed: pattern,
+      );
+      ref.read(sessionStartTimeProvider.notifier).state = null;
+      ref.invalidate(sessionHistoryProvider);
+    }
+
     ref.read(activePatternProvider.notifier).state = null;
     ref.read(patternTimerSecondsProvider.notifier).state = null;
     ref.read(activeMotorsProvider.notifier).state = {};
