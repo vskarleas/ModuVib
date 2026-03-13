@@ -416,24 +416,61 @@ class _ProfileCard extends ConsumerStatefulWidget {
 }
 
 class _ProfileCardState extends ConsumerState<_ProfileCard> {
-  late TextEditingController currentPassController;
-  late TextEditingController newPassController;
-  late TextEditingController confirmPassController;
+  // Controllers for all profile editing fields
+  late TextEditingController _firstNameController;
+  late TextEditingController _lastNameController;
+  late TextEditingController _newEmailController;
+  late TextEditingController _emailPassController;
+  late TextEditingController _currentPassController;
+  late TextEditingController _newPassController;
+  late TextEditingController _confirmPassController;
+
+  String _displayName = 'Patient';
+  String _firstName = '';
+  String _lastName = '';
 
   @override
   void initState() {
     super.initState();
-    currentPassController = TextEditingController();
-    newPassController = TextEditingController();
-    confirmPassController = TextEditingController();
+    _firstNameController = TextEditingController();
+    _lastNameController = TextEditingController();
+    _newEmailController = TextEditingController();
+    _emailPassController = TextEditingController();
+    _currentPassController = TextEditingController();
+    _newPassController = TextEditingController();
+    _confirmPassController = TextEditingController();
+    _loadUserData();
   }
 
   @override
   void dispose() {
-    currentPassController.dispose();
-    newPassController.dispose();
-    confirmPassController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _newEmailController.dispose();
+    _emailPassController.dispose();
+    _currentPassController.dispose();
+    _newPassController.dispose();
+    _confirmPassController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (!mounted) return;
+      final data = doc.data();
+      setState(() {
+        _firstName = data?['firstName'] as String? ?? '';
+        _lastName = data?['lastName'] as String? ?? '';
+        final full = '$_firstName $_lastName'.trim();
+        _displayName = full.isEmpty ? (user.email?.split('@')[0] ?? 'Patient') : full;
+      });
+    } catch (_) {}
   }
 
   @override
@@ -441,158 +478,427 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
     final user = FirebaseAuth.instance.currentUser;
     final email = user?.email ?? 'Patient';
 
-    return FutureBuilder<String>(
-      future: user != null 
-        ? FirebaseFirestore.instance.collection('users').doc(user.uid).get().then((doc) {
-            final firstName = doc.data()?['firstName'] as String? ?? '';
-            final lastName = doc.data()?['lastName'] as String? ?? '';
-            return '$firstName $lastName'.trim().isEmpty 
-              ? email.split('@')[0] 
-              : '$firstName $lastName'.trim();
-          })
-        : Future.value('Patient'),
-      builder: (context, snapshot) {
-        final displayName = snapshot.data ?? 'Patient';
-
-        return GestureDetector(
-          onTap: () => _showPasswordChangeDialog(context),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: widget.cardColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppColors.divider.withValues(alpha: 0.2),
+    return GestureDetector(
+      onTap: () => _showProfileSheet(context),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: widget.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.divider.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(LucideIcons.user, color: AppColors.primary, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _displayName,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: widget.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    email,
+                    style: GoogleFonts.poppins(fontSize: 12, color: widget.textSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
-            child: Row(
+            Icon(LucideIcons.chevronRight, size: 20, color: widget.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Profile Bottom Sheet ──────────────────────────────────────
+
+  void _showProfileSheet(BuildContext context) {
+    final bgColor = widget.isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textPrimary = widget.textPrimary;
+    final textSecondary = widget.textSecondary;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) {
+          return Container(
+            color: bgColor,
+            child: Column(
               children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(LucideIcons.user, color: AppColors.primary, size: 24),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
                     children: [
                       Text(
-                        displayName,
+                        'Mon profil',
                         style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: widget.textPrimary,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: textPrimary,
                         ),
                       ),
-                      Text(
-                        email,
-                        style: GoogleFonts.poppins(fontSize: 12, color: widget.textSecondary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(LucideIcons.x),
+                        onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
                 ),
-                Icon(LucideIcons.chevronRight, size: 20, color: widget.textSecondary),
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    children: [
+                      // ── Section: Nom ──
+                      _ProfileSectionHeader(
+                        icon: LucideIcons.userCircle,
+                        title: 'Nom et prénom',
+                        textPrimary: textPrimary,
+                      ),
+                      const SizedBox(height: 12),
+                      _ProfileActionTile(
+                        label: 'Prénom',
+                        value: _firstName.isEmpty ? 'Non défini' : _firstName,
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                        isDark: widget.isDark,
+                        onTap: () => _showNameEditDialog(context),
+                      ),
+                      _ProfileActionTile(
+                        label: 'Nom',
+                        value: _lastName.isEmpty ? 'Non défini' : _lastName,
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                        isDark: widget.isDark,
+                        onTap: () => _showNameEditDialog(context),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── Section: Email ──
+                      _ProfileSectionHeader(
+                        icon: LucideIcons.mail,
+                        title: 'Adresse email',
+                        textPrimary: textPrimary,
+                      ),
+                      const SizedBox(height: 12),
+                      _ProfileActionTile(
+                        label: 'Email',
+                        value: FirebaseAuth.instance.currentUser?.email ?? '--',
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                        isDark: widget.isDark,
+                        onTap: () => _showEmailChangeDialog(context),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── Section: Mot de passe ──
+                      _ProfileSectionHeader(
+                        icon: LucideIcons.lock,
+                        title: 'Mot de passe',
+                        textPrimary: textPrimary,
+                      ),
+                      const SizedBox(height: 12),
+                      _ProfileActionTile(
+                        label: 'Mot de passe',
+                        value: '••••••••',
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                        isDark: widget.isDark,
+                        onTap: () => _showPasswordChangeDialog(context),
+                      ),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
+  // ── Name Edit Dialog ──────────────────────────────────────────
+
+  void _showNameEditDialog(BuildContext context) {
+    _firstNameController.text = _firstName;
+    _lastNameController.text = _lastName;
+    String? errorMsg;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          backgroundColor: widget.isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(LucideIcons.userCircle, size: 22, color: AppColors.primary),
+              const SizedBox(width: 10),
+              Text(
+                'Modifier le nom',
+                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (errorMsg != null) ...[
+                  _ErrorBanner(message: errorMsg!),
+                  const SizedBox(height: 16),
+                ],
+                _DialogTextField(
+                  controller: _firstNameController,
+                  hint: 'Prénom',
+                  isDark: widget.isDark,
+                ),
+                const SizedBox(height: 12),
+                _DialogTextField(
+                  controller: _lastNameController,
+                  hint: 'Nom',
+                  isDark: widget.isDark,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Annuler', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final first = _firstNameController.text.trim();
+                final last = _lastNameController.text.trim();
+                if (first.isEmpty && last.isEmpty) {
+                  setState(() => errorMsg = 'Veuillez remplir au moins un champ');
+                  return;
+                }
+
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) return;
+
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .set({'firstName': first, 'lastName': last}, SetOptions(merge: true));
+
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (!mounted) return;
+                  _loadUserData();
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text('Nom mis à jour', style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  );
+                } catch (e) {
+                  setState(() => errorMsg = 'Erreur lors de la mise à jour');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text('Enregistrer', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Email Change Dialog ───────────────────────────────────────
+
+  void _showEmailChangeDialog(BuildContext context) {
+    _newEmailController.clear();
+    _emailPassController.clear();
+    String? errorMsg;
+    bool obscurePass = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          backgroundColor: widget.isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(LucideIcons.mail, size: 22, color: AppColors.primary),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  'Changer l\'email',
+                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Un email de vérification sera envoyé à la nouvelle adresse. '
+                  'Vous devrez cliquer sur le lien pour confirmer le changement.',
+                  style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                if (errorMsg != null) ...[
+                  _ErrorBanner(message: errorMsg!),
+                  const SizedBox(height: 16),
+                ],
+                _DialogTextField(
+                  controller: _newEmailController,
+                  hint: 'Nouvelle adresse email',
+                  isDark: widget.isDark,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _emailPassController,
+                  obscureText: obscurePass,
+                  style: GoogleFonts.poppins(fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Mot de passe actuel',
+                    hintStyle: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
+                    suffixIcon: IconButton(
+                      icon: Icon(obscurePass ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                      onPressed: () => setState(() => obscurePass = !obscurePass),
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Annuler', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final newEmail = _newEmailController.text.trim();
+                final password = _emailPassController.text;
+
+                if (newEmail.isEmpty || password.isEmpty) {
+                  setState(() => errorMsg = 'Tous les champs sont requis');
+                  return;
+                }
+
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) return;
+
+                try {
+                  // Re-authenticate first
+                  final credential = EmailAuthProvider.credential(
+                    email: user.email!,
+                    password: password,
+                  );
+                  await user.reauthenticateWithCredential(credential);
+
+                  // Send verification to new email
+                  await user.verifyBeforeUpdateEmail(newEmail);
+
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Un email de vérification a été envoyé à $newEmail. Vérifiez votre boîte de réception.',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                      ),
+                      backgroundColor: AppColors.primary,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                } on FirebaseAuthException catch (e) {
+                  String msg;
+                  switch (e.code) {
+                    case 'wrong-password':
+                    case 'invalid-credential':
+                      msg = 'Mot de passe incorrect';
+                      break;
+                    case 'invalid-email':
+                      msg = 'Adresse email invalide';
+                      break;
+                    case 'email-already-in-use':
+                      msg = 'Cette adresse email est déjà utilisée';
+                      break;
+                    case 'requires-recent-login':
+                      msg = 'Veuillez vous reconnecter avant de modifier l\'email';
+                      break;
+                    default:
+                      msg = 'Erreur : ${e.code}';
+                  }
+                  setState(() => errorMsg = msg);
+                } catch (e) {
+                  setState(() => errorMsg = 'Erreur inattendue');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text('Envoyer la vérification', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Password Change Dialog ────────────────────────────────────
+
   void _showPasswordChangeDialog(BuildContext context) {
-    // Clear controllers at start
-    currentPassController.clear();
-    newPassController.clear();
-    confirmPassController.clear();
+    _currentPassController.clear();
+    _newPassController.clear();
+    _confirmPassController.clear();
 
     bool obscureCurrentPass = true;
     bool obscureNewPass = true;
     bool obscureConfirmPass = true;
     String? errorMsg;
-
-    Future<void> handlePasswordChange(
-      BuildContext ctx,
-      StateSetter setState,
-      String currentPass,
-      String newPass,
-      String confirmPass,
-    ) async {
-      // Validation
-      if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
-        setState(() {
-          errorMsg = 'Tous les champs sont requis';
-        });
-        return;
-      }
-
-      if (newPass != confirmPass) {
-        setState(() {
-          errorMsg = 'Les nouveaux mots de passe ne correspondent pas';
-        });
-        return;
-      }
-
-      if (newPass.length < 6) {
-        setState(() {
-          errorMsg = 'Le mot de passe doit contenir au moins 6 caractères';
-        });
-        return;
-      }
-
-      try {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) {
-          setState(() {
-            errorMsg = 'Utilisateur non trouvé';
-          });
-          return;
-        }
-
-        // Re-authenticate with current password
-        final credential = EmailAuthProvider.credential(
-          email: user.email!,
-          password: currentPass,
-        );
-
-        await user.reauthenticateWithCredential(credential);
-
-        // Update password
-        await user.updatePassword(newPass);
-
-        if (ctx.mounted) {
-          Navigator.pop(ctx);
-          ScaffoldMessenger.of(ctx).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Mot de passe mis à jour avec succès',
-                style: GoogleFonts.poppins(),
-              ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      } on FirebaseAuthException catch (e) {
-        String msg = 'Erreur lors de la mise à jour du mot de passe';
-        if (e.code == 'wrong-password') {
-          msg = 'Le mot de passe actuel est incorrect';
-        } else if (e.code == 'weak-password') {
-          msg = 'Le nouveau mot de passe est trop faible';
-        }
-        setState(() {
-          errorMsg = msg;
-        });
-      }
-    }
 
     showDialog(
       context: context,
@@ -614,37 +920,19 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Error message
                 if (errorMsg != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      errorMsg!,
-                      style: GoogleFonts.poppins(
-                        color: AppColors.error,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
+                  _ErrorBanner(message: errorMsg!),
                   const SizedBox(height: 16),
                 ],
-
-                // Current password
                 TextField(
-                  controller: currentPassController,
+                  controller: _currentPassController,
                   obscureText: obscureCurrentPass,
                   style: GoogleFonts.poppins(fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Mot de passe actuel',
                     hintStyle: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureCurrentPass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      ),
+                      icon: Icon(obscureCurrentPass ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                       onPressed: () => setState(() => obscureCurrentPass = !obscureCurrentPass),
                     ),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -652,19 +940,15 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // New password
                 TextField(
-                  controller: newPassController,
+                  controller: _newPassController,
                   obscureText: obscureNewPass,
                   style: GoogleFonts.poppins(fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Nouveau mot de passe',
                     hintStyle: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureNewPass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      ),
+                      icon: Icon(obscureNewPass ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                       onPressed: () => setState(() => obscureNewPass = !obscureNewPass),
                     ),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -672,19 +956,15 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Confirm password
                 TextField(
-                  controller: confirmPassController,
+                  controller: _confirmPassController,
                   obscureText: obscureConfirmPass,
                   style: GoogleFonts.poppins(fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Confirmer le mot de passe',
                     hintStyle: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureConfirmPass ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      ),
+                      icon: Icon(obscureConfirmPass ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                       onPressed: () => setState(() => obscureConfirmPass = !obscureConfirmPass),
                     ),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -697,33 +977,213 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                'Annuler',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-              ),
+              child: Text('Annuler', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
             ),
             ElevatedButton(
-              onPressed: () => handlePasswordChange(
-                ctx,
-                setState,
-                currentPassController.text,
-                newPassController.text,
-                confirmPassController.text,
-              ),
+              onPressed: () async {
+                final currentPass = _currentPassController.text;
+                final newPass = _newPassController.text;
+                final confirmPass = _confirmPassController.text;
+
+                if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+                  setState(() => errorMsg = 'Tous les champs sont requis');
+                  return;
+                }
+                if (newPass != confirmPass) {
+                  setState(() => errorMsg = 'Les nouveaux mots de passe ne correspondent pas');
+                  return;
+                }
+                if (newPass.length < 6) {
+                  setState(() => errorMsg = 'Le mot de passe doit contenir au moins 6 caractères');
+                  return;
+                }
+
+                try {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user == null) {
+                    setState(() => errorMsg = 'Utilisateur non trouvé');
+                    return;
+                  }
+
+                  final credential = EmailAuthProvider.credential(
+                    email: user.email!,
+                    password: currentPass,
+                  );
+                  await user.reauthenticateWithCredential(credential);
+                  await user.updatePassword(newPass);
+
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text('Mot de passe mis à jour avec succès', style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  );
+                } on FirebaseAuthException catch (e) {
+                  String msg = 'Erreur lors de la mise à jour du mot de passe';
+                  if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+                    msg = 'Le mot de passe actuel est incorrect';
+                  } else if (e.code == 'weak-password') {
+                    msg = 'Le nouveau mot de passe est trop faible';
+                  }
+                  setState(() => errorMsg = msg);
+                }
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: Text(
-                'Mettre à jour',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-              ),
+              child: Text('Mettre à jour', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Profile Sheet Helper Widgets ────────────────────────────────
+
+class _ProfileSectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Color textPrimary;
+
+  const _ProfileSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.textPrimary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.primary),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileActionTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color textPrimary;
+  final Color textSecondary;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _ProfileActionTile({
+    required this.label,
+    required this.value,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: GoogleFonts.poppins(fontSize: 11, color: textSecondary),
+                    ),
+                    Text(
+                      value,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(LucideIcons.pencil, size: 16, color: textSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  const _ErrorBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        message,
+        style: GoogleFonts.poppins(color: AppColors.error, fontSize: 13),
+      ),
+    );
+  }
+}
+
+class _DialogTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final bool isDark;
+  final TextInputType? keyboardType;
+
+  const _DialogTextField({
+    required this.controller,
+    required this.hint,
+    required this.isDark,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: GoogleFonts.poppins(fontSize: 14),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }
