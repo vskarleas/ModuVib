@@ -11,6 +11,29 @@ import '../../core/services/ble_protocol.dart';
 // PATTERNS SCREEN — Programmes automatiques de vibration
 // ══════════════════════════════════════════════════════════════
 
+void _showNotConnected(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          const Icon(LucideIcons.bluetoothOff, color: Colors.white, size: 18),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              'Appareil non connecté — commande non envoyée',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: Colors.orange.shade700,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      duration: const Duration(seconds: 3),
+    ),
+  );
+}
+
 /// Modèle décrivant un pattern vibratoire.
 class _PatternInfo {
   final String id;
@@ -95,7 +118,7 @@ class PatternsScreen extends ConsumerStatefulWidget {
 class _PatternsScreenState extends ConsumerState<PatternsScreen> {
   // ── Actions ──────────────────────────────────────────────────
 
-  void _togglePattern(String patternId) {
+  Future<void> _togglePattern(String patternId) async {
     if (!mounted) return;
 
     final current = ref.read(activePatternProvider);
@@ -107,19 +130,27 @@ class _PatternsScreenState extends ConsumerState<PatternsScreen> {
       return;
     }
 
+    // Vérifier la connexion avant de lancer
+    final pattern = _kPatterns.firstWhere((p) => p.id == patternId);
+    final intensityByte = BleProtocol.intensityToByte(pattern.frequency);
+
     // Arrêter les moteurs, puis lancer le nouveau programme
     bleService.sendCommand(BleProtocol.stopCommand());
 
-    final pattern = _kPatterns.firstWhere((p) => p.id == patternId);
-    final intensityByte = BleProtocol.intensityToByte(pattern.frequency);
-    bleService.sendCommand(
+    // Envoie la commande pattern — l'ESP32 gère l'animation des moteurs
+    final sent = await bleService.sendCommand(
       BleProtocol.patternCommand(pattern.protocolId, intensityByte),
     );
+    if (!sent) {
+      if (mounted) _showNotConnected(context);
+      return;
+    }
 
     // Mettre à jour l'état
     ref.read(activePatternProvider.notifier).state = patternId;
     ref.read(motorsRunningProvider.notifier).state = true;
     ref.read(lastSessionTimeProvider.notifier).state = DateTime.now();
+    ref.read(sessionStartTimeProvider.notifier).state = DateTime.now();
 
     // Lancer le minuteur si un preset est sélectionné
     final preset = ref.read(_selectedTimerProvider);
@@ -215,6 +246,7 @@ class _PatternsScreenState extends ConsumerState<PatternsScreen> {
                 return _PatternCard(
                   pattern: pattern,
                   isActive: isActive,
+                  timerSeconds: isActive ? timerSeconds : null,
                   cardColor: cardColor,
                   textPrimary: textPrimary,
                   textSecondary: textSecondary,
@@ -288,6 +320,7 @@ String _formatTime(int totalSeconds) {
 class _PatternCard extends StatelessWidget {
   final _PatternInfo pattern;
   final bool isActive;
+  final int? timerSeconds;
   final Color cardColor;
   final Color textPrimary;
   final Color textSecondary;
@@ -296,6 +329,7 @@ class _PatternCard extends StatelessWidget {
   const _PatternCard({
     required this.pattern,
     required this.isActive,
+    this.timerSeconds,
     required this.cardColor,
     required this.textPrimary,
     required this.textSecondary,
@@ -338,7 +372,30 @@ class _PatternCard extends StatelessWidget {
               children: [
                 Text(pattern.emoji, style: const TextStyle(fontSize: 28)),
                 const Spacer(),
-                if (isActive)
+                if (isActive && timerSeconds != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(LucideIcons.timer, size: 12, color: accent),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatTime(timerSeconds!),
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (isActive)
                   Container(
                     width: 10,
                     height: 10,
