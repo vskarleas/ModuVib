@@ -255,30 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        SizedBox(
-                          width: 24, height: 24,
-                          child: Checkbox(
-                            value: _rememberMe,
-                            onChanged: (v) => setState(() => _rememberMe = v ?? false),
-                            activeColor: AppColors.primary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                            side: BorderSide(color: Colors.grey.shade400, width: 1.5),
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
                         const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () => setState(() => _rememberMe = !_rememberMe),
-                          child: Text(
-                            'Se souvenir de moi',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ),
                         const Spacer(),
                         TextButton(
                           onPressed: _isLoading ? null : _handleForgotPassword,
