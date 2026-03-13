@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/providers/app_providers.dart';
+import 'core/services/local_security_service.dart';
 
 // ============================================================
 // MODUVIB — Point d'entrée de l'application
@@ -39,8 +40,15 @@ void main() async {
   // Check for remember me + active Firebase session
   final prefs = await SharedPreferences.getInstance();
   final rememberMe = prefs.getBool('rememberMe') ?? false;
-  final hasFirebaseUser = FirebaseAuth.instance.currentUser != null;
-  final startRoute = (rememberMe && hasFirebaseUser) ? AppRoutes.home : AppRoutes.login;
+  final currentUser = FirebaseAuth.instance.currentUser;
+  final hasFirebaseUser = currentUser != null;
+
+  String startRoute = AppRoutes.login;
+  if (rememberMe && hasFirebaseUser) {
+    final security = LocalSecurityService();
+    final setupComplete = await security.isSecuritySetupComplete(currentUser.uid);
+    startRoute = setupComplete ? AppRoutes.lock : AppRoutes.home;
+  }
 
   runApp(
     ProviderScope(
@@ -58,14 +66,14 @@ class ModuVibApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    final isDark = ref.watch(darkModeProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
       title: 'ModuVib',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+      themeMode: themeMode,
       routerConfig: router,
     );
   }

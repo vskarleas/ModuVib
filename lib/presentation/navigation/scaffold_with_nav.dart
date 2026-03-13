@@ -157,6 +157,7 @@ class _GlassNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ClipRRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
@@ -179,7 +180,18 @@ class _GlassNavBar extends StatelessWidget {
               ),
             ),
             Container(
-              decoration: GlassDecoration.navBar(),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF1E1E1E).withValues(alpha: 0.92)
+                    : Colors.white.withValues(alpha: 0.92),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
               child: SafeArea(
                 top: false,
                 child: SizedBox(
@@ -224,9 +236,12 @@ class _NavBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = isSelected
         ? AppColors.primary
-        : AppColors.textSecondary.withValues(alpha: 0.6);
+        : isDark
+            ? const Color(0xFF9E9E9E)
+            : AppColors.textSecondary.withValues(alpha: 0.6);
 
     return Expanded(
       child: GestureDetector(

@@ -25,7 +25,6 @@ class SettingsScreen extends ConsumerWidget {
     final battery = ref.watch(batteryLevelProvider);
     final bleState = ref.watch(bleConnectionProvider);
     final maxThreshold = ref.watch(maxIntensityThresholdProvider);
-    final darkMode = ref.watch(darkModeProvider);
     final biometricEnabled = ref.watch(biometricEnabledProvider);
     final masterIntensity = ref.watch(masterIntensityProvider);
     final remaining = BleProtocol.estimateRemainingMinutes(battery, masterIntensity);
@@ -90,7 +89,7 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsTile(
               icon: LucideIcons.refreshCw,
               title: 'Firmware',
-              subtitle: 'v2.1.3 — À jour',
+              subtitle: 'v2.1.3',
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
@@ -132,16 +131,31 @@ class SettingsScreen extends ConsumerWidget {
             _SectionTitle(title: 'Application', textSecondary: textSecondary),
             const SizedBox(height: 12),
             _SettingsTile(
-              icon: darkMode ? LucideIcons.moon : LucideIcons.sun,
-              title: 'Thème sombre',
-              subtitle: darkMode ? 'Activé' : 'Désactivé',
+              icon: isDark ? LucideIcons.moon : LucideIcons.sun,
+              title: 'Thème',
+              subtitle: ref.watch(themeModeProvider) == ThemeMode.system
+                  ? 'Automatique (système)'
+                  : ref.watch(themeModeProvider) == ThemeMode.dark
+                      ? 'Sombre'
+                      : 'Clair',
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
-              trailing: Switch(
-                value: darkMode,
-                activeTrackColor: AppColors.primary,
-                onChanged: (v) => ref.read(darkModeProvider.notifier).state = v,
+              trailing: DropdownButtonHideUnderline(
+                child: DropdownButton<ThemeMode>(
+                  value: ref.watch(themeModeProvider),
+                  isDense: true,
+                  items: const [
+                    DropdownMenuItem(value: ThemeMode.system, child: Text('Auto')),
+                    DropdownMenuItem(value: ThemeMode.light, child: Text('Clair')),
+                    DropdownMenuItem(value: ThemeMode.dark, child: Text('Sombre')),
+                  ],
+                  onChanged: (mode) {
+                    if (mode != null) {
+                      ref.read(themeModeProvider.notifier).state = mode;
+                    }
+                  },
+                ),
               ),
             ),
             _SettingsTile(

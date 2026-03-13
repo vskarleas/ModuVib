@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -76,6 +77,9 @@ final activationRadiusProvider = StateProvider<double>((ref) => 1.0);
 
 // ── Preferences ─────────────────────────────────────────────────────────────
 final darkModeProvider = StateProvider<bool>((ref) => false);
+
+/// Theme mode: system (auto), light, or dark
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 final rememberMeProvider = StateProvider<bool>((ref) => false);
 
 // ── Firebase Auth ───────────────────────────────────────────────────────────

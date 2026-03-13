@@ -47,9 +47,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       await _authService.reloadUser();
 
       if (_authService.isEmailVerified()) {
-        // Email is verified, go to home
+        // Email is verified, go to security setup (biometric + PIN)
         if (mounted) {
-          context.go(AppRoutes.home);
+          context.go(AppRoutes.securitySetup);
         }
       } else {
         // Not verified yet, schedule next check

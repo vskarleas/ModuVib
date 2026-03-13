@@ -9,7 +9,7 @@
 * [X] Understand the code and its structure
 * [X] Update the manual screen
 * [X] Write the code for the ESP32 in order to communicate under the name ModuVib
-* [ ] Fix login issue with phone number. It says on android Error d'autentication (unknown). On Ios it just tcuks
+* [X] Fix login issue with phone number. It says on android Error d'autentication (unknown). On Ios it just tcuks
 * [ ] Integrate the codes found on the notes section that Dounia sent me in the different actiosn of the app.
 
 ## Notes
