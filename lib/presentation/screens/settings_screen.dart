@@ -90,7 +90,7 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsTile(
               icon: LucideIcons.refreshCw,
               title: 'Firmware',
-              subtitle: 'V4.2',
+              subtitle: 'V5.0',
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
@@ -468,192 +468,204 @@ class SettingsScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.85,
-        builder: (context, scrollController) {
-          return Container(
-            color: bgColor,
-            child: Column(
+      builder: (ctx) => Container(
+        color: bgColor,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: textSecondary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header — same style as battery sheet
+            Row(
               children: [
-                // Drag handle + header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 20),
-                        decoration: BoxDecoration(
-                          color: textSecondary.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(LucideIcons.cpu, size: 20, color: AppColors.primary),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Firmware',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: textPrimary,
-                                ),
-                              ),
-                              Text(
-                                'Version actuelle : v4.2',
-                                style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
-                              ),
-                            ],
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'À jour',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.green,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Divider(color: textSecondary.withValues(alpha: 0.2), height: 1),
-                    ],
+                const Icon(LucideIcons.cpu, size: 24, color: AppColors.primary),
+                const SizedBox(width: 12),
+                Text(
+                  'Firmware',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: textPrimary,
                   ),
                 ),
-                // Version history
-                Expanded(
-                  child: ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-                    children: [
-                      Text(
-                        'Historique des versions',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: textPrimary,
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-                      _FirmwareVersionTile(
-                        version: 'v4.2',
-                        date: 'Mars 2026',
-                        isCurrent: true,
-                        changes: const [
-                          'Reparation de bugs mineurs et optimisations diverses pour iOS',
-                        ],
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                      ),
-
-                      _FirmwareVersionTile(
-                        version: 'v4.1',
-                        date: 'Mars 2026',
-                        isCurrent: true,
-                        changes: const [
-                          'Correction des problèmes de connexion Bluetooth pour XIAO ESP32C3',
-                        ],
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                      ),
-                      
-                      _FirmwareVersionTile(
-                        version: 'v3.0',
-                        date: 'Mars 2026',
-                        isCurrent: true,
-                        changes: const [
-                          'Contrôle manuel avec grille moteurs 5×3',
-                          'Protocole BLE 3 octets complet',
-                          'Programmes de vibration (Vague, Pluie, Impulsion, Cercle)',
-                          'Journal d\'utilisation avec Firebase',
-                          'Sécurité biométrique et PIN',
-                        ],
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                      ),
-                      _FirmwareVersionTile(
-                        version: 'v2.1',
-                        date: 'Février 2026',
-                        changes: const [
-                          'Support base de données Firebase',
-                          'Authentification FaceID / TouchID',
-                          'Services Bluetooth créés et connectés à l\'interface',
-                          'Suppression des options codées en dur',
-                        ],
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                      ),
-                      _FirmwareVersionTile(
-                        version: 'v1.0',
-                        date: 'Janvier 2026',
-                        changes: const [
-                          'Première itération de l\'interface',
-                          'Mise en place de l\'architecture de l\'application',
-                        ],
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                      ),
-                      const SizedBox(height: 16),
-                      // ESP32 info
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.05)
-                              : Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Informations matériel',
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _FirmwareInfoRow(label: 'Microcontrôleur', value: 'XIAO ESP32C3', textSecondary: textSecondary),
-                            _FirmwareInfoRow(label: 'Grille moteurs', value: '5 × 3 (15 moteurs)', textSecondary: textSecondary),
-                            _FirmwareInfoRow(label: 'Alimentation', value: 'Powerbank 4.7V', textSecondary: textSecondary),
-                            _FirmwareInfoRow(label: 'Communication', value: 'BLE (Bluetooth Low Energy)', textSecondary: textSecondary),
-                          ],
-                        ),
-                      ),
-                    ],
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'À jour',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green,
+                    ),
                   ),
                 ),
               ],
             ),
-          );
-        },
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Version actuelle : v5.0',
+                style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Scrollable content
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Info rows — same style as battery
+                    _BatteryInfoRow(
+                      label: 'Microcontrôleur',
+                      value: 'XIAO ESP32C3',
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    _BatteryInfoRow(
+                      label: 'Grille moteurs',
+                      value: '5 × 3 (15 moteurs)',
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    _BatteryInfoRow(
+                      label: 'Alimentation',
+                      value: 'Powerbank 4.7V',
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    _BatteryInfoRow(
+                      label: 'Communication',
+                      value: 'BLE (Bluetooth Low Energy)',
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Historique des versions',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _FirmwareVersionTile(
+                      version: 'v5.0',
+                      date: 'Mars 2026',
+                      isCurrent: true,
+                      changes: const [
+                        'Reparation de bugs mineurs et optimisations diverses pour Android et bugs d\'affichage',
+                      ],
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    const SizedBox(height: 16),
+                    _FirmwareVersionTile(
+                      version: 'v4.2',
+                      date: 'Mars 2026',
+                      isCurrent: false,
+                      changes: const [
+                        'Reparation de bugs mineurs et optimisations diverses pour iOS',
+                      ],
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    _FirmwareVersionTile(
+                      version: 'v4.1',
+                      date: 'Mars 2026',
+                      changes: const [
+                        'Correction des problèmes de connexion Bluetooth pour XIAO ESP32C3',
+                      ],
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    _FirmwareVersionTile(
+                      version: 'v3.0',
+                      date: 'Mars 2026',
+                      changes: const [
+                        'Contrôle manuel avec grille moteurs 5×3',
+                        'Protocole BLE 3 octets complet',
+                        'Programmes de vibration (Vague, Pluie, Impulsion, Cercle)',
+                        'Journal d\'utilisation avec Firebase',
+                        'Sécurité biométrique et PIN',
+                      ],
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    _FirmwareVersionTile(
+                      version: 'v2.1',
+                      date: 'Février 2026',
+                      changes: const [
+                        'Support base de données Firebase',
+                        'Authentification FaceID / TouchID',
+                        'Services Bluetooth créés et connectés à l\'interface',
+                        'Suppression des options codées en dur',
+                      ],
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    _FirmwareVersionTile(
+                      version: 'v1.0',
+                      date: 'Janvier 2026',
+                      changes: const [
+                        'Première itération de l\'interface',
+                        'Mise en place de l\'architecture de l\'application',
+                      ],
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    const SizedBox(height: 16),
+                    // Note — same style as battery
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(LucideIcons.info, size: 16, color: AppColors.primary.withValues(alpha: 0.7)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Le firmware est mis à jour automatiquement via le code ESP32. '
+                              'Flashez le microcontrôleur pour appliquer les nouvelles versions.',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: textSecondary,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -671,110 +683,193 @@ class SettingsScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.65,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        builder: (context, scrollController) {
-          return Container(
-            color: bgColor,
-            child: Column(
+      builder: (ctx) => Container(
+        color: bgColor,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: textSecondary.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header — same style as battery sheet
+            Row(
               children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Licences',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: textPrimary,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(LucideIcons.x),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
+                const Icon(LucideIcons.info, size: 24, color: AppColors.primary),
+                const SizedBox(width: 12),
+                Text(
+                  'À propos',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: textPrimary,
                   ),
                 ),
-                // License list
-                Expanded(
-                  child: ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    children: [
-                      _LicenseTile(
-                        name: 'Flutter',
-                        license: 'BSD 3-Clause License',
-                        url: 'https://flutter.dev',
-                        textSecondary: textSecondary,
-                      ),
-                      _LicenseTile(
-                        name: 'Firebase',
-                        license: 'Apache License 2.0',
-                        url: 'https://firebase.google.com',
-                        textSecondary: textSecondary,
-                      ),
-                      _LicenseTile(
-                        name: 'flutter_blue_plus',
-                        license: 'BSD License',
-                        url: 'https://pub.dev/packages/flutter_blue_plus',
-                        textSecondary: textSecondary,
-                      ),
-                      _LicenseTile(
-                        name: 'go_router',
-                        license: 'BSD License',
-                        url: 'https://pub.dev/packages/go_router',
-                        textSecondary: textSecondary,
-                      ),
-                      _LicenseTile(
-                        name: 'Riverpod',
-                        license: 'MIT License',
-                        url: 'https://pub.dev/packages/riverpod',
-                        textSecondary: textSecondary,
-                      ),
-                      _LicenseTile(
-                        name: 'fl_chart',
-                        license: 'MIT License',
-                        url: 'https://pub.dev/packages/fl_chart',
-                        textSecondary: textSecondary,
-                      ),
-                      _LicenseTile(
-                        name: 'Google Fonts',
-                        license: 'Apache License 2.0',
-                        url: 'https://fonts.google.com',
-                        textSecondary: textSecondary,
-                      ),
-                      _LicenseTile(
-                        name: 'lucide_icons',
-                        license: 'ISC License',
-                        url: 'https://pub.dev/packages/lucide_icons',
-                        textSecondary: textSecondary,
-                      ),
-                      _LicenseTile(
-                        name: 'local_auth',
-                        license: 'BSD License',
-                        url: 'https://pub.dev/packages/local_auth',
-                        textSecondary: textSecondary,
-                      ),
-                      _LicenseTile(
-                        name: 'shared_preferences',
-                        license: 'BSD License',
-                        url: 'https://pub.dev/packages/shared_preferences',
-                        textSecondary: textSecondary,
-                      ),
-                      const SizedBox(height: 30),
-                    ],
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'v4.2',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ],
             ),
-          );
-        },
+            const SizedBox(height: 16),
+            // Info rows — same style as battery
+            _BatteryInfoRow(
+              label: 'Application',
+              value: 'ModuVib',
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+            _BatteryInfoRow(
+              label: 'Version',
+              value: '5.0.0',
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+            _BatteryInfoRow(
+              label: 'Plateforme',
+              value: 'Flutter / Dart',
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Licences open source',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: textPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Scrollable license list
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _LicenseTile(
+                      name: 'Flutter',
+                      license: 'BSD 3-Clause License',
+                      url: 'https://flutter.dev',
+                      textSecondary: textSecondary,
+                    ),
+                    _LicenseTile(
+                      name: 'Firebase',
+                      license: 'Apache License 2.0',
+                      url: 'https://firebase.google.com',
+                      textSecondary: textSecondary,
+                    ),
+                    _LicenseTile(
+                      name: 'flutter_blue_plus',
+                      license: 'BSD License',
+                      url: 'https://pub.dev/packages/flutter_blue_plus',
+                      textSecondary: textSecondary,
+                    ),
+                    _LicenseTile(
+                      name: 'go_router',
+                      license: 'BSD License',
+                      url: 'https://pub.dev/packages/go_router',
+                      textSecondary: textSecondary,
+                    ),
+                    _LicenseTile(
+                      name: 'Riverpod',
+                      license: 'MIT License',
+                      url: 'https://pub.dev/packages/riverpod',
+                      textSecondary: textSecondary,
+                    ),
+                    _LicenseTile(
+                      name: 'fl_chart',
+                      license: 'MIT License',
+                      url: 'https://pub.dev/packages/fl_chart',
+                      textSecondary: textSecondary,
+                    ),
+                    _LicenseTile(
+                      name: 'Google Fonts',
+                      license: 'Apache License 2.0',
+                      url: 'https://fonts.google.com',
+                      textSecondary: textSecondary,
+                    ),
+                    _LicenseTile(
+                      name: 'lucide_icons',
+                      license: 'ISC License',
+                      url: 'https://pub.dev/packages/lucide_icons',
+                      textSecondary: textSecondary,
+                    ),
+                    _LicenseTile(
+                      name: 'local_auth',
+                      license: 'BSD License',
+                      url: 'https://pub.dev/packages/local_auth',
+                      textSecondary: textSecondary,
+                    ),
+                    _LicenseTile(
+                      name: 'shared_preferences',
+                      license: 'BSD License',
+                      url: 'https://pub.dev/packages/shared_preferences',
+                      textSecondary: textSecondary,
+                    ),
+                    _LicenseTile(
+                      name: 'wakelock_plus',
+                      license: 'BSD License',
+                      url: 'https://pub.dev/packages/wakelock_plus',
+                      textSecondary: textSecondary,
+                    ),
+                    const SizedBox(height: 16),
+                    // Note — same style as battery
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(LucideIcons.info, size: 16, color: AppColors.primary.withValues(alpha: 0.7)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'ModuVib est un projet développé dans le cadre du programme '
+                              'ROB5 S10 — GTS815.',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: textSecondary,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2023,31 +2118,3 @@ class _FirmwareVersionTile extends StatelessWidget {
   }
 }
 
-class _FirmwareInfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color textSecondary;
-
-  const _FirmwareInfoRow({
-    required this.label,
-    required this.value,
-    required this.textSecondary,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: GoogleFonts.poppins(fontSize: 12, color: textSecondary)),
-          Text(
-            value,
-            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
-}

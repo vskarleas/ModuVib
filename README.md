@@ -4,8 +4,8 @@
 * V2.1 : This versions implements databse support with FaceID and TouchID option. The required bluetooth services were created and connected with the ui. We also removed any hard coded options.
 * V3 : We can choose manualyif we want a specific motor or not from the map page.
 * V4.1 : Fixed some communication issues with the ESP32 BLE board
-* V4.2 : Fixed ios securoty issues with continues bluetooth
-* V5.0 :
+* V4.2 : Fixed ios security issues with continues bluetooth
+* V5.0 : Fixed android communication issue with the ESP32 BLE board and some presentatio features on the settings page
 
 ## TO-DO
 
@@ -23,7 +23,7 @@
 * [X] We need when we login on existed account to activate biometrique security if it is not set up and set up the pin instead.
 * [X] Please note that if the user already signed in once the app, do not send the user to the pin screen authentication or unlocking via faceid. This needs to be fixed !
 * [X] Changed the hard coded voltage to something related with the ESP32 chip on the dashboadr page
-* [ ] Prepare V5.0 that allows to see in details the statistcs and also teh patterns should be capable to send stop command **even if the phone is locked**. And fix the firmware and the a propos at teh settings when the pop up opens from down. I believe the issue is that we have set the background colour to be white. Eventually we want the same idea as the battery pop up but larger on the screen. 
+* [X] Prepare V5.0 that allows to see in details the statistcs and also teh patterns should be capable to send stop command **even if the phone is locked**. And fix the firmware and the a propos at teh settings when the pop up opens from down. I believe the issue is that we have set the background colour to be white. Eventually we want the same idea as the battery pop up but larger on the screen.
 
 ## BLE Protocol — Commandes 3 octets `[CMD, TARGET, VALUE]`
 

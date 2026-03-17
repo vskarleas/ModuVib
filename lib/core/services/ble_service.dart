@@ -38,11 +38,21 @@ class BleService {
 
   // ── Connexion ────────────────────────────────────────────────────────────
 
+  /// Completer-based lock: non-null means a connection attempt is in progress.
+  /// More robust than a boolean because it survives async gaps.
+  Completer<void>? _connectLock;
+
   Future<void> connect() async {
+    // Strict single-attempt guard
     if (_isConnected) return;
+    if (_connectLock != null) return;
+    _connectLock = Completer<void>();
     onConnecting?.call(true);
 
     try {
+      // Cancel any lingering scan from a previous attempt
+      await FlutterBluePlus.stopScan();
+
       // Vérifier que le Bluetooth est activé
       final adapterState = await FlutterBluePlus.adapterState.first;
       if (adapterState != BluetoothAdapterState.on) {
@@ -52,26 +62,59 @@ class BleService {
 
       BluetoothDevice? found;
 
-      final scanSub = FlutterBluePlus.onScanResults.listen((results) {
-        for (final r in results) {
-          if (r.device.platformName.contains(kDeviceNamePrefix) ||
-              r.device.platformName.contains('ESP32')) {
-            found = r.device;
-            FlutterBluePlus.stopScan();
+      // 1) Check already-bonded devices (Android only, returns [] on iOS)
+      try {
+        final bonded = await FlutterBluePlus.bondedDevices;
+        for (final d in bonded) {
+          if (d.platformName.contains(kDeviceNamePrefix) ||
+              d.platformName.contains('ESP32')) {
+            found = d;
+            break;
           }
         }
-      });
+      } catch (_) {
+        // bondedDevices not supported on this platform
+      }
 
-      // Lancer le scan (s'arrête automatiquement après timeout)
-      FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
+      // 2) Check system-connected devices (works on both iOS & Android)
+      if (found == null) {
+        try {
+          final systemConnected = await FlutterBluePlus.systemDevices([]);
+          for (final d in systemConnected) {
+            if (d.platformName.contains(kDeviceNamePrefix) ||
+                d.platformName.contains('ESP32')) {
+              found = d;
+              break;
+            }
+          }
+        } catch (_) {}
+      }
 
-      // Attendre la fin du scan
-      await FlutterBluePlus.isScanning
-          .where((scanning) => !scanning)
-          .first
-          .timeout(const Duration(seconds: 15), onTimeout: () => false);
+      // 3) If not found, scan
+      if (found == null) {
+        final scanSub = FlutterBluePlus.onScanResults.listen((results) {
+          for (final r in results) {
+            if (r.device.platformName.contains(kDeviceNamePrefix) ||
+                r.device.platformName.contains('ESP32')) {
+              found = r.device;
+              FlutterBluePlus.stopScan();
+            }
+          }
+        });
 
-      await scanSub.cancel();
+        await FlutterBluePlus.startScan(
+          timeout: const Duration(seconds: 10),
+          androidUsesFineLocation: false,
+        );
+
+        // Attendre la fin du scan
+        await FlutterBluePlus.isScanning
+            .where((scanning) => !scanning)
+            .first
+            .timeout(const Duration(seconds: 15), onTimeout: () => false);
+
+        await scanSub.cancel();
+      }
 
       if (found == null) {
         onError?.call();
@@ -81,7 +124,6 @@ class BleService {
       _device = found;
 
       // Écouter les déconnexions AVANT connect() pour ne rien manquer.
-      // Le guard _isConnected empêche les événements parasites pendant le setup.
       await _connectionSub?.cancel();
       _connectionSub = _device!.connectionState.listen((state) {
         if (state == BluetoothConnectionState.disconnected && _isConnected) {
@@ -116,6 +158,10 @@ class BleService {
       _startBatteryPolling();
     } catch (_) {
       onError?.call();
+    } finally {
+      // Always release the lock, no matter what happened
+      _connectLock?.complete();
+      _connectLock = null;
     }
   }
 

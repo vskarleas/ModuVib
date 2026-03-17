@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../services/ble_service.dart';
 import '../services/ble_protocol.dart';
@@ -142,6 +143,9 @@ class PatternTimerNotifier extends StateNotifier<void> {
     stopTimer();
     ref.read(patternTimerSecondsProvider.notifier).state = totalSeconds;
 
+    // Keep the CPU awake so the timer fires even with screen off
+    WakelockPlus.enable();
+
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       final remaining = ref.read(patternTimerSecondsProvider);
       if (remaining == null || remaining <= 1) {
@@ -156,6 +160,7 @@ class PatternTimerNotifier extends StateNotifier<void> {
   void stopTimer() {
     _timer?.cancel();
     _timer = null;
+    WakelockPlus.disable();
   }
 
   /// Arrête complètement le pattern et le timer
