@@ -250,7 +250,7 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
                   backgroundColor: AppColors.error,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor:
-                      AppColors.error.withValues(alpha: 0.3),
+                      isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade300,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),

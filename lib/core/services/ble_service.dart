@@ -149,7 +149,7 @@ class BleService {
   Future<bool> sendCommand(Uint8List command) async {
     if (_commandChar == null || !_isConnected) return false;
     try {
-      await _commandChar!.write(command.toList(), withoutResponse: true);
+      await _commandChar!.write(command.toList(), withoutResponse: false);
       return true;
     } catch (_) {
       return false;

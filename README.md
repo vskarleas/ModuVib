@@ -4,6 +4,8 @@
 * V2.1 : This versions implements databse support with FaceID and TouchID option. The required bluetooth services were created and connected with the ui. We also removed any hard coded options.
 * V3 : We can choose manualyif we want a specific motor or not from the map page.
 * V4.1 : Fixed some communication issues with the ESP32 BLE board
+* V4.2 : Fixed ios securoty issues with continues bluetooth
+* V5.0 :
 
 ## TO-DO
 
@@ -21,6 +23,7 @@
 * [X] We need when we login on existed account to activate biometrique security if it is not set up and set up the pin instead.
 * [X] Please note that if the user already signed in once the app, do not send the user to the pin screen authentication or unlocking via faceid. This needs to be fixed !
 * [X] Changed the hard coded voltage to something related with the ESP32 chip on the dashboadr page
+* [ ] Prepare V5.0 that allows to see in details the statistcs
 
 ## BLE Protocol — Commandes 3 octets `[CMD, TARGET, VALUE]`
 

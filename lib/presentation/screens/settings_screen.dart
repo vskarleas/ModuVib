@@ -90,7 +90,7 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsTile(
               icon: LucideIcons.refreshCw,
               title: 'Firmware',
-              subtitle: 'v3.0',
+              subtitle: 'V4.2',
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
@@ -515,7 +515,7 @@ class SettingsScreen extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                'Version actuelle : v4.1',
+                                'Version actuelle : v4.2',
                                 style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
                               ),
                             ],
@@ -557,7 +557,19 @@ class SettingsScreen extends ConsumerWidget {
                           color: textPrimary,
                         ),
                       ),
+
                       const SizedBox(height: 16),
+                      _FirmwareVersionTile(
+                        version: 'v4.2',
+                        date: 'Mars 2026',
+                        isCurrent: true,
+                        changes: const [
+                          'Reparation de bugs mineurs et optimisations diverses pour iOS',
+                        ],
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                      ),
+
                       _FirmwareVersionTile(
                         version: 'v4.1',
                         date: 'Mars 2026',
@@ -569,7 +581,6 @@ class SettingsScreen extends ConsumerWidget {
                         textSecondary: textSecondary,
                       ),
                       
-                      const SizedBox(height: 16),
                       _FirmwareVersionTile(
                         version: 'v3.0',
                         date: 'Mars 2026',
