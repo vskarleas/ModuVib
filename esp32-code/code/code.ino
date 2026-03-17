@@ -398,7 +398,7 @@ void setup() {
   pAdvertising->setScanResponse(true);
   BLEDevice::startAdvertising();
 
-  Serial.println("[ModuVib] BLE pret - nom: ModuVib-XIAO");
+  Serial.println("[ModuVib] BLE pret - nom: ModuVib-4K2A");
   Serial.println("[ModuVib] En attente de l'application...");
 }
 
