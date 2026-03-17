@@ -23,7 +23,7 @@
 * [X] We need when we login on existed account to activate biometrique security if it is not set up and set up the pin instead.
 * [X] Please note that if the user already signed in once the app, do not send the user to the pin screen authentication or unlocking via faceid. This needs to be fixed !
 * [X] Changed the hard coded voltage to something related with the ESP32 chip on the dashboadr page
-* [ ] Prepare V5.0 that allows to see in details the statistcs
+* [ ] Prepare V5.0 that allows to see in details the statistcs and also teh patterns should be capable to send stop command **even if the phone is locked**
 
 ## BLE Protocol — Commandes 3 octets `[CMD, TARGET, VALUE]`
 
