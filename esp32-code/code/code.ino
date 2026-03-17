@@ -369,7 +369,7 @@ void setup() {
 
   Serial.println("[ModuVib] Demarrage XIAO ESP32C3...");
   Serial.printf("[ModuVib] %d moteurs configures\n", NUM_MOTORS);
-  BLEDevice::init("ModuVib-XIAO");
+  BLEDevice::init("ModuVib-4K2A");
 
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new ServerCallbacks());
