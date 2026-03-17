@@ -179,7 +179,7 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsTile(
               icon: LucideIcons.info,
               title: 'À propos',
-              subtitle: 'ModuVib — GTS815 ÉTS',
+              subtitle: 'ModuVib',
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
