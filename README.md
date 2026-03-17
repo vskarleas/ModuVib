@@ -29,9 +29,9 @@
 
 Chaque commande envoyée par l'app Flutter au ESP32 est composée de 3 octets.
 
-### Commandes
+### Commands
 
-| CMD      | Nom                   | TARGET                       | VALUE                                | Exemple (hex)                                | Source dans l'app              |
+| CMD      | Name                  | Target                       | Value                                | Example                                      | Signification                  |
 | -------- | --------------------- | ---------------------------- | ------------------------------------ | -------------------------------------------- | ------------------------------ |
 | `0x01` | Moteur individuel     | ID moteur (0x01–0x0F)       | Intensité (0x00=OFF, 0x01–0xFF=ON) | `01 05 FF` → Moteur 5 ON pleine puissance | Contrôle Manuel               |
 | `0x02` | Pattern               | ID pattern (voir ci-dessous) | Intensité (0x00–0xFF)              | `02 01 BF` → Vague à 75%                 | Programmes                     |
@@ -40,7 +40,7 @@ Chaque commande envoyée par l'app Flutter au ESP32 est composée de 3 octets.
 | `0x05` | Ping                  | `0x00`                     | `0x00`                             | `05 00 00`                                 | Keep-alive                     |
 | `0x06` | Demande batterie      | `0x00`                     | `0x00`                             | `06 00 00`                                 | Polling batterie               |
 
-### Identifiants moteurs (grille dorsale 5×3)
+### Motors ID (5x3)
 
 | Rangée    | Gauche        | Centre        | Droite        |
 | ---------- | ------------- | ------------- | ------------- |
@@ -50,7 +50,7 @@ Chaque commande envoyée par l'app Flutter au ESP32 est composée de 3 octets.
 | 4          | M10 =`0x0A` | M11 =`0x0B` | M12 =`0x0C` |
 | 5 (bas)    | M13 =`0x0D` | M14 =`0x0E` | M15 =`0x0F` |
 
-### Identifiants patterns
+### Patterns IDs
 
 | ID       | Nom       | Description                              |
 | -------- | --------- | ---------------------------------------- |
@@ -59,9 +59,9 @@ Chaque commande envoyée par l'app Flutter au ESP32 est composée de 3 octets.
 | `0x03` | Impulsion | Tous les moteurs ON/OFF en alternance    |
 | `0x04` | Cercle    | Rotation sur le périmètre de la grille |
 
-### Réponses ESP32 → App (notifications BLE)
+### Responses from ESP32
 
-| Réponse              | Signification                       |
+| Response              | Description in serialPrint          |
 | --------------------- | ----------------------------------- |
 | `CONNECTED`         | App connectée                      |
 | `MOTOR_X_ON_Y`      | Moteur X activé à intensité Y    |
@@ -77,9 +77,9 @@ Chaque commande envoyée par l'app Flutter au ESP32 est composée de 3 octets.
 | `BAT_XX`            | Niveau batterie (XX%)               |
 | `ERR_LEN`           | Commande invalide (taille ≠ 3)     |
 
-### Mode test
+### Test mode
 
-Le fichier `esp32-code/code.ino` contient un flag `TEST_MODE` (par défaut `true`). En mode test, les commandes sont reçues et affichées dans le Serial Monitor mais les GPIOs ne sont pas pilotés. Passer à `false` quand les moteurs sont physiquement branchés.
+The  `esp32-code/code.ino` file has a `TEST_MODE`  flga that is set to true. When in test mode no I/O of the carte are used. Instead we do printe everythign via serial communication.
 
 ## Notes
 
