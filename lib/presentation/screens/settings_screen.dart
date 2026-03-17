@@ -515,7 +515,7 @@ class SettingsScreen extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                'Version actuelle : v3.0',
+                                'Version actuelle : v4.1',
                                 style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
                               ),
                             ],
@@ -557,6 +557,18 @@ class SettingsScreen extends ConsumerWidget {
                           color: textPrimary,
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      _FirmwareVersionTile(
+                        version: 'v4.1',
+                        date: 'Mars 2026',
+                        isCurrent: true,
+                        changes: const [
+                          'Correction des problèmes de connexion Bluetooth pour XIAO ESP32C3',
+                        ],
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                      ),
+                      
                       const SizedBox(height: 16),
                       _FirmwareVersionTile(
                         version: 'v3.0',

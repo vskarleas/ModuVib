@@ -79,14 +79,17 @@ class BleService {
       }
 
       _device = found;
-      await _device!.connect(timeout: const Duration(seconds: 10));
 
-      // Écouter les déconnexions
+      // Écouter les déconnexions AVANT connect() pour ne rien manquer.
+      // Le guard _isConnected empêche les événements parasites pendant le setup.
+      await _connectionSub?.cancel();
       _connectionSub = _device!.connectionState.listen((state) {
-        if (state == BluetoothConnectionState.disconnected) {
+        if (state == BluetoothConnectionState.disconnected && _isConnected) {
           _onDisconnected();
         }
       });
+
+      await _device!.connect(timeout: const Duration(seconds: 10));
 
       // Découvrir services et caractéristiques
       final services = await _device!.discoverServices();
@@ -104,6 +107,7 @@ class BleService {
         }
       }
 
+      // Marquer connecté seulement après que tout est prêt
       _isConnected = true;
       onConnectionChanged?.call(true);
 

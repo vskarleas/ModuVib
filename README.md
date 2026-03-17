@@ -3,6 +3,7 @@
 * V1 : First itteration of the UI of the App. Now we will work on the wireless module connection with the ESP32 micro-controller.
 * V2.1 : This versions implements databse support with FaceID and TouchID option. The required bluetooth services were created and connected with the ui. We also removed any hard coded options.
 * V3 : We can choose manualyif we want a specific motor or not from the map page.
+* V4.1 : Fixed some communication issues with the ESP32 BLE board
 
 ## TO-DO
 
