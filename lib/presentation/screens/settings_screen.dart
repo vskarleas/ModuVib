@@ -90,7 +90,7 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsTile(
               icon: LucideIcons.refreshCw,
               title: 'Firmware',
-              subtitle: 'V5.0',
+              subtitle: 'V5.1',
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
@@ -522,7 +522,7 @@ class SettingsScreen extends ConsumerWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Version actuelle : v5.0',
+                'Version actuelle : V5.1',
                 style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
               ),
             ),
@@ -569,9 +569,20 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                     _FirmwareVersionTile(
-                      version: 'v5.0',
+                      version: 'V5.1',
                       date: 'Mars 2026',
                       isCurrent: true,
+                      changes: const [
+                        'Representation en format dos sur la page de selection manuelle, et control via OPEN DRAIN for ESP32',
+                      ],
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    const SizedBox(height: 16),
+                    _FirmwareVersionTile(
+                      version: 'V5.0',
+                      date: 'Mars 2026',
+                      isCurrent: false,
                       changes: const [
                         'Reparation de bugs mineurs et optimisations diverses pour Android et bugs d\'affichage',
                       ],
@@ -580,7 +591,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                     _FirmwareVersionTile(
-                      version: 'v4.2',
+                      version: 'V4.2',
                       date: 'Mars 2026',
                       isCurrent: false,
                       changes: const [
@@ -590,7 +601,7 @@ class SettingsScreen extends ConsumerWidget {
                       textSecondary: textSecondary,
                     ),
                     _FirmwareVersionTile(
-                      version: 'v4.1',
+                      version: 'V4.1',
                       date: 'Mars 2026',
                       changes: const [
                         'Correction des problèmes de connexion Bluetooth pour XIAO ESP32C3',
@@ -599,7 +610,7 @@ class SettingsScreen extends ConsumerWidget {
                       textSecondary: textSecondary,
                     ),
                     _FirmwareVersionTile(
-                      version: 'v3.0',
+                      version: 'V3.0',
                       date: 'Mars 2026',
                       changes: const [
                         'Contrôle manuel avec grille moteurs 5×3',
@@ -612,7 +623,7 @@ class SettingsScreen extends ConsumerWidget {
                       textSecondary: textSecondary,
                     ),
                     _FirmwareVersionTile(
-                      version: 'v2.1',
+                      version: 'V2.1',
                       date: 'Février 2026',
                       changes: const [
                         'Support base de données Firebase',
@@ -624,7 +635,7 @@ class SettingsScreen extends ConsumerWidget {
                       textSecondary: textSecondary,
                     ),
                     _FirmwareVersionTile(
-                      version: 'v1.0',
+                      version: 'V1.0',
                       date: 'Janvier 2026',
                       changes: const [
                         'Première itération de l\'interface',
@@ -743,7 +754,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             _BatteryInfoRow(
               label: 'Version',
-              value: '5.0.0',
+              value: '5.1.0',
               textPrimary: textPrimary,
               textSecondary: textSecondary,
             ),

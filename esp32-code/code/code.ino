@@ -22,46 +22,53 @@
 #define PATTERN_CIRCLE 0x04
 
 // ══════════════════════════════════════════════════════════════
-// MODE TEST : mettre à true pour uniquement afficher dans Serial
-// sans piloter les GPIOs (aucun moteur branché)
+// MODE TEST
 // ══════════════════════════════════════════════════════════════
 #define TEST_MODE true
 
 // ══════════════════════════════════════════════════════════════
-// CONFIGURATION DES PINS MOTEURS (XIAO ESP32C3)
+// CONFIGURATION SHIFT REGISTERS — 2× TPIC6C595
 // ══════════════════════════════════════════════════════════════
-// Grille dorsale 5 rangées × 3 colonnes = 15 moteurs
-// Moteur ID 0x01..0x0F → index 0..14 dans le tableau
-// Adapter les pins selon votre câblage réel.
+// 2 registres en daisy-chain = 16 sorties (15 utilisées pour moteurs)
+// Moteur ID 0x01..0x0F → bit 0..14 dans motorState
+//
+// Câblage :
+//   ESP32 GPIO → TPIC6C595
+//   SR_DATA    → SER IN  (pin 3)  du chip 1
+//   SR_CLOCK   → SRCK    (pin 13) des deux chips (liés)
+//   SR_LATCH   → RCK     (pin 12) des deux chips (liés)
+//   SR_OE      → G       (pin 9)  des deux chips (liés) — PWM intensité
+//   Tirer SRCLR (pin 8) à VCC sur les deux chips
+//
+// Daisy-chain : SER OUT (pin 18) chip 1 → SER IN (pin 3) chip 2
 
 #define NUM_MOTORS 15
 
-// Pins GPIO pour chaque moteur (index 0 = moteur 0x01, etc.)
-// Remplacer par vos pins réels
-const uint8_t MOTOR_PINS[NUM_MOTORS] = {
-  2,   // M1  - Rangée 1
-  3,   // M2
-  4,   // M3
-  5,   // M4  - Rangée 2
-  6,   // M5
-  7,   // M6
-  8,   // M7  - Rangée 3
-  9,   // M8
-  10,  // M9
-  20,  // M10 - Rangée 4
-  21,  // M11
-  0,   // M12 (attention : GPIO0 peut être boot sur certaines cartes)
-  1,   // M13 - Rangée 5
-  18,  // M14
-  19,  // M15
-};
+// Pins pour XIAO ESP32C3
+#define SR_DATA   2   // SER IN du premier TPIC6C595
+#define SR_CLOCK  3   // SRCK (horloge shift) — commun aux deux chips
+#define SR_LATCH  4   // RCK  (horloge latch) — commun aux deux chips
+#define SR_OE     5   // G (Output Enable, actif bas) — PWM intensité globale
 
-// État courant de chaque moteur (intensité 0-255)
-uint8_t motorIntensity[NUM_MOTORS] = {0};
+// Bitmask : bit N = moteur N+1 (bit 0 = M1, bit 14 = M15)
+uint16_t motorState = 0x0000;
+
+// Intensité globale courante (0-255) appliquée via PWM sur G
+uint8_t currentIntensity = 0;
 
 // Intensité master globale (0-255), appliquée par CMD_MASTER_INTENSITY
 uint8_t masterIntensity = 0;
 bool masterActive = false;
+
+// Grille dorsale variable : 3, 4, 3, 2, 3 moteurs par rangée
+// Rangée 0 : [1] M1  M2  M3
+// Rangée 1 : [4] M4  M5  M6  M7
+// Rangée 2 : [8] M8  M9  M10
+// Rangée 3 : [11] M11 M12
+// Rangée 4 : [13] M13 M14 M15
+#define NUM_ROWS 5
+static const uint8_t rowStart[] = {1, 4, 8, 11, 13};
+static const uint8_t rowLen[]   = {3, 4, 3, 2,  3};
 
 // ══════════════════════════════════════════════════════════════
 // PATTERN ENGINE
@@ -90,27 +97,62 @@ void sendStatus(const char* msg) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// SHIFT REGISTER — envoi des 16 bits aux deux TPIC6C595
+// ══════════════════════════════════════════════════════════════
+
+/// Pousse les 16 bits de motorState vers les registres
+void updateShiftRegisters() {
+  if (TEST_MODE) {
+    Serial.printf("  [SR] motorState=0x%04X  intensity=%d\n", motorState, currentIntensity);
+    return;
+  }
+
+  // Le premier octet envoyé traverse chip 1 et finit dans chip 2
+  // Le second octet envoyé reste dans chip 1
+  digitalWrite(SR_LATCH, LOW);
+  shiftOut(SR_DATA, SR_CLOCK, MSBFIRST, (motorState >> 8) & 0xFF);  // chip 2 : bits 8-15
+  shiftOut(SR_DATA, SR_CLOCK, MSBFIRST, motorState & 0xFF);          // chip 1 : bits 0-7
+  digitalWrite(SR_LATCH, HIGH);
+}
+
+/// Met à jour l'intensité globale via PWM sur le pin G (actif bas)
+void updateIntensity(uint8_t intensity) {
+  currentIntensity = intensity;
+  if (TEST_MODE) return;
+
+  // G est actif bas : 0 = sorties actives à 100%, 255 = sorties désactivées
+  analogWrite(SR_OE, 255 - intensity);
+}
+
+// ══════════════════════════════════════════════════════════════
 // CONTRÔLE MOTEURS
 // ══════════════════════════════════════════════════════════════
 
-/// Active un moteur individuel (motorId 1-15, intensity 0-255)
+/// Active/désactive un moteur individuel (motorId 1-15)
+
+// intensity > 0 → bit ON + intensité globale mise à jour
+// intensity = 0 → bit OFF
 void setMotor(uint8_t motorId, uint8_t intensity) {
   if (motorId < 1 || motorId > NUM_MOTORS) return;
-  uint8_t idx = motorId - 1;
-  motorIntensity[idx] = intensity;
-  if (!TEST_MODE) {
-    analogWrite(MOTOR_PINS[idx], intensity);
+  if (intensity > 0) {
+    motorState |= (1 << (motorId - 1));   // allumer ce moteur
+    updateIntensity(intensity);             // mettre à jour l'intensité globale
+  } else {
+    motorState &= ~(1 << (motorId - 1));  // éteindre ce moteur
   }
+  updateShiftRegisters();
 }
 
-/// Active tous les moteurs à la même intensité
+/// Active/désactive tous les moteurs
 void setAllMotors(uint8_t intensity) {
-  for (uint8_t i = 0; i < NUM_MOTORS; i++) {
-    motorIntensity[i] = intensity;
-    if (!TEST_MODE) {
-      analogWrite(MOTOR_PINS[i], intensity);
-    }
+  if (intensity > 0) {
+    motorState = 0x7FFF;  // bits 0-14 à 1 (15 moteurs)
+    updateIntensity(intensity);
+  } else {
+    motorState = 0x0000;
+    updateIntensity(0);
   }
+  updateShiftRegisters();
 }
 
 /// Coupe tous les moteurs
@@ -130,34 +172,37 @@ void patternWaveTick() {
   if (millis() - patternStepTime < STEP_MS) return;
   patternStepTime = millis();
 
-  // Éteindre tous les moteurs
-  setAllMotors(0);
+  // Éteindre tous (garder l'intensité pour la prochaine rangée)
+  motorState = 0x0000;
 
-  // Activer la rangée courante (3 moteurs par rangée)
-  int row = patternStep % 5;
-  for (int col = 0; col < 3; col++) {
-    uint8_t motorId = row * 3 + col + 1;
-    setMotor(motorId, patternIntensity);
+  // Activer la rangée courante (taille variable)
+  int row = patternStep % NUM_ROWS;
+  for (int col = 0; col < rowLen[row]; col++) {
+    uint8_t motorId = rowStart[row] + col;
+    motorState |= (1 << (motorId - 1));
   }
+  updateIntensity(patternIntensity);
+  updateShiftRegisters();
   patternStep++;
 }
 
-/// Pluie : active des moteurs aléatoires avec intensité variable
+/// Pluie : active des moteurs aléatoires
 void patternRainTick() {
   const unsigned long STEP_MS = 200;
   if (millis() - patternStepTime < STEP_MS) return;
   patternStepTime = millis();
 
   // Éteindre tous
-  setAllMotors(0);
+  motorState = 0x0000;
 
   // Activer 2-4 moteurs aléatoires
   int count = random(2, 5);
   for (int i = 0; i < count; i++) {
     uint8_t motorId = random(1, NUM_MOTORS + 1);
-    uint8_t intensity = random(patternIntensity / 2, patternIntensity + 1);
-    setMotor(motorId, intensity);
+    motorState |= (1 << (motorId - 1));
   }
+  updateIntensity(patternIntensity);
+  updateShiftRegisters();
 }
 
 /// Impulsion : tous les moteurs ON/OFF en alternance
@@ -175,23 +220,27 @@ void patternPulseTick() {
 }
 
 /// Cercle : active les moteurs en rotation (périmètre de la grille)
+
+// Périmètre adapté à la grille 3,4,3,2,3 :
+// M1→M2→M3→M7→M10→M12→M15→M14→M13→M11→M8→M4
 void patternCircleTick() {
   const unsigned long STEP_MS = 250;
   if (millis() - patternStepTime < STEP_MS) return;
   patternStepTime = millis();
 
-  // Séquence périmètre : M1,M2,M3,M6,M9,M12,M15,M14,M13,M10,M7,M4
-  static const uint8_t perimeterIds[] = {1,2,3,6,9,12,15,14,13,10,7,4};
+  static const uint8_t perimeterIds[] = {1, 2, 3, 7, 10, 12, 15, 14, 13, 11, 8, 4};
   static const int perimeterLen = 12;
 
-  setAllMotors(0);
+  motorState = 0x0000;
 
+  // Moteur courant + traînée (moteur précédent)
   int idx = patternStep % perimeterLen;
-  setMotor(perimeterIds[idx], patternIntensity);
-  // Ajouter une traînée (moteur précédent à demi-intensité)
   int prevIdx = (idx - 1 + perimeterLen) % perimeterLen;
-  setMotor(perimeterIds[prevIdx], patternIntensity / 3);
+  motorState |= (1 << (perimeterIds[idx] - 1));
+  motorState |= (1 << (perimeterIds[prevIdx] - 1));
 
+  updateIntensity(patternIntensity);
+  updateShiftRegisters();
   patternStep++;
 }
 
@@ -208,7 +257,7 @@ void updatePattern() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// BLE CALLBACKS
+// SOME CALLBACKS
 // ══════════════════════════════════════════════════════════════
 
 class ServerCallbacks : public BLEServerCallbacks {
@@ -221,6 +270,7 @@ class ServerCallbacks : public BLEServerCallbacks {
   void onDisconnect(BLEServer* pServer) override {
     deviceConnected = false;
     Serial.println("[BLE] Application deconnectee");
+    
     // Sécurité : couper les moteurs à la déconnexion
     stopAllMotors();
     BLEDevice::startAdvertising();
@@ -268,9 +318,11 @@ class CommandCallbacks : public BLECharacteristicCallbacks {
         }
         break;
 
+        
       // ── Pattern ──────────────────────────────────────────
       case CMD_PATTERN:
-        // D'abord tout couper
+
+        // stop everything in the begining
         setAllMotors(0);
 
         activePattern = target;
@@ -330,6 +382,7 @@ class CommandCallbacks : public BLECharacteristicCallbacks {
       // ── Demande batterie ─────────────────────────────────
       case CMD_BATTERY_REQUEST: {
         Serial.println(">> Demande batterie");
+
         // TODO: Lire la vraie tension batterie via ADC
         // Pour l'instant, valeur fixe
         uint8_t batteryLevel = 84;
@@ -357,20 +410,29 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // Configurer les pins moteurs en sortie
+  // Configurer les pins shift register
   if (!TEST_MODE) {
-    for (int i = 0; i < NUM_MOTORS; i++) {
-      pinMode(MOTOR_PINS[i], OUTPUT);
-      analogWrite(MOTOR_PINS[i], 0);
-    }
+    pinMode(SR_DATA, OUTPUT);
+    pinMode(SR_CLOCK, OUTPUT);
+    pinMode(SR_LATCH, OUTPUT);
+    pinMode(SR_OE, OUTPUT);
+
+    // État initial : tout éteint
+    digitalWrite(SR_LATCH, LOW);
+    digitalWrite(SR_CLOCK, LOW);
+    analogWrite(SR_OE, 255);  // G haut = sorties désactivées
+    motorState = 0x0000;
+    updateShiftRegisters();
   }
 
   Serial.printf("[ModuVib] Mode test : %s\n", TEST_MODE ? "OUI (Serial uniquement)" : "NON (GPIOs actifs)");
 
   Serial.println("[ModuVib] Demarrage XIAO ESP32C3...");
-  Serial.printf("[ModuVib] %d moteurs configures\n", NUM_MOTORS);
-  BLEDevice::init("ModuVib-4K2A");
+  Serial.printf("[ModuVib] %d moteurs via 2x TPIC6C595\n", NUM_MOTORS);
+  Serial.printf("[ModuVib] Pins: DATA=%d CLOCK=%d LATCH=%d OE=%d\n", SR_DATA, SR_CLOCK, SR_LATCH, SR_OE);
 
+  // Bluetooth service
+  BLEDevice::init("ModuVib-4K2A");
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new ServerCallbacks());
 
@@ -381,6 +443,9 @@ void setup() {
     COMMAND_CHAR_UUID,
     BLECharacteristic::PROPERTY_WRITE
   );
+
+
+  // Trigger the commands
   pCommandChar->setCallbacks(new CommandCallbacks());
 
   // Characteristic de retour : la carte notifie ici

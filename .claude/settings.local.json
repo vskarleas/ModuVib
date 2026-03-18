@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(flutter analyze:*)",
-      "Bash(flutter pub:*)"
+      "Bash(flutter pub:*)",
+      "Bash(export PATH=\"$HOME/flutter/bin:$HOME/.pub-cache/bin:$HOME/fvm/default/bin:/opt/homebrew/bin:$PATH\")"
     ]
   }
 }

@@ -6,6 +6,7 @@
 * V4.1 : Fixed some communication issues with the ESP32 BLE board
 * V4.2 : Fixed ios security issues with continues bluetooth
 * V5.0 : Fixed android communication issue with the ESP32 BLE board and some presentatio features on the settings page
+* V5.1 : Updated the code.ino for it to work using the OPEN DRAINS where the motors are connected an dudpated the design of the manual page.
 
 ## TO-DO
 

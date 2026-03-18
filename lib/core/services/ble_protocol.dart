@@ -20,23 +20,27 @@ class BleProtocol {
   static const int cmdPing = 0x05;
   static const int cmdBatteryRequest = 0x06;
 
-  // ── Identifiants moteur (5×3 grille dorsale — 15 moteurs, pins 1‑15) ───
+  // ── Identifiants moteur  grille dorsale — 15 moteurs, 3, 4, 3, 2, 3) ───
   // Rangée 1 (haut)
   static const int motor1  = 0x01;
   static const int motor2  = 0x02;
   static const int motor3  = 0x03;
+
   // Rangée 2
   static const int motor4  = 0x04;
   static const int motor5  = 0x05;
   static const int motor6  = 0x06;
-  // Rangée 3 (milieu)
   static const int motor7  = 0x07;
+
+  // Rangée 3 (milieu)
   static const int motor8  = 0x08;
   static const int motor9  = 0x09;
-  // Rangée 4
   static const int motor10 = 0x0A;
+
+  // Rangée 4
   static const int motor11 = 0x0B;
   static const int motor12 = 0x0C;
+ 
   // Rangée 5 (bas)
   static const int motor13 = 0x0D;
   static const int motor14 = 0x0E;
@@ -44,12 +48,12 @@ class BleProtocol {
 
   static const int motorCount = 15;
 
-  /// Grille moteur : 5 rangées × 3 colonnes (identifiants des pins)
+  /// Grille moteur
   static const List<List<int>> motorGrid = [
     [0x01, 0x02, 0x03],
-    [0x04, 0x05, 0x06],
-    [0x07, 0x08, 0x09],
-    [0x0A, 0x0B, 0x0C],
+    [0x04, 0x05, 0x06, 0x07],
+    [0x08, 0x09, 0x0A],
+    [0x0B, 0x0C],
     [0x0D, 0x0E, 0x0F],
   ];
 
