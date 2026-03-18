@@ -541,8 +541,8 @@ class SettingsScreen extends ConsumerWidget {
                       textSecondary: textSecondary,
                     ),
                     _BatteryInfoRow(
-                      label: 'Grille moteurs',
-                      value: '5 × 3 (15 moteurs)',
+                      label: 'Nb moteurs',
+                      value: '15 moteurs',
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                     ),
@@ -554,7 +554,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     _BatteryInfoRow(
                       label: 'Communication',
-                      value: 'BLE (Bluetooth Low Energy)',
+                      value: 'BLE',
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                     ),
@@ -755,12 +755,6 @@ class SettingsScreen extends ConsumerWidget {
             _BatteryInfoRow(
               label: 'Version',
               value: '5.1.0',
-              textPrimary: textPrimary,
-              textSecondary: textSecondary,
-            ),
-            _BatteryInfoRow(
-              label: 'Plateforme',
-              value: 'Flutter / Dart',
               textPrimary: textPrimary,
               textSecondary: textSecondary,
             ),
