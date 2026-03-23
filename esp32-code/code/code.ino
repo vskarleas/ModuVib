@@ -27,28 +27,43 @@
 #define TEST_MODE true
 
 // ══════════════════════════════════════════════════════════════
-// CONFIGURATION SHIFT REGISTERS — 2× TPIC6C595
+// CONFIGURATION 
 // ══════════════════════════════════════════════════════════════
-// 2 registres en daisy-chain = 16 sorties (15 utilisées pour moteurs)
-// Moteur ID 0x01..0x0F → bit 0..14 dans motorState
-//
-// Câblage :
-//   ESP32 GPIO → TPIC6C595
-//   SR_DATA    → SER IN  (pin 3)  du chip 1
-//   SR_CLOCK   → SRCK    (pin 13) des deux chips (liés)
-//   SR_LATCH   → RCK     (pin 12) des deux chips (liés)
-//   SR_OE      → G       (pin 9)  des deux chips (liés) — PWM intensité
-//   Tirer SRCLR (pin 8) à VCC sur les deux chips
-//
-// Daisy-chain : SER OUT (pin 18) chip 1 → SER IN (pin 3) chip 2
+
+
+// motorState est une image qui montre l'etat On ou OFF d'un moteur specific. Par 
+// exemple, si motorState = 0x0005 (binaire 0000 0000 0000 0101), cela signifie que 
+// les moteurs M1 et M3 sont allumés (bits 0 et 2 à 1), tandis que les autres moteurs 
+//sont éteints (bits à 0). Lorsque motorState est envoyé aux shift registers, chaque 
+// bit contrôle l'état d'un moteur spécifique : bit 0 pour M1, bit 1 pour M2, ..., bit 14 
+//pour M15.
+
+// Dans ce cadre la nous avons les methodes suivantes pour controler les moteurs :
+// 1. setMotor(motorId, intensity) : pour controler un moteur individuel
+// 2. setAllMotors(intensity) : pour controler tous les moteurs en même temps
+// 3. updatePattern() : pour animer des patterns predefinis qui activent/désactivent les moteurs de manière dynamique (ex: vague, pluie, impulsion, cercle)
+// 4. updateIntensity(intensity) : pour controler l'intensité globale via PWM sur G des I2C
+// 5. stopAllMotors() : pour couper tous les moteurs (sécurité) qui fait appel à setAllMotors(0) avec une intensité de 0
+// (SOS) 6. updateShiftRegisters() : pour envoyer l'état actuel de motorState aux shift registers (TPIC6C595) afin de refléter les changements d'état des moteurs sur le hardware
+
+
+
+//   ESP32S3 GPIO -> TPIC6C595
+//   SR_DATA  -> SER IN (pin 2 TPIC6C595)  chip 1
+//   SR_CLOCK -> SRCK (pin 15 TPIC6C595) des deux chips
+//   SR_LATCH -> RCK (pin 10 TPIC6C595) des deux chips
+//   SR_OE    -> G (pin 8 TPIC6C595)  des deux chips avec PWM pour intensité
+//   CLR (pin 7 TPIC6C595) à VCC sur les deux chips
+//   SER OUT (pin 9 TPIC6C595) chip 1 -> SER IN (pin 2 TPIC6C595) chip 2
+
 
 #define NUM_MOTORS 15
 
-// Pins pour XIAO ESP32C3
-#define SR_DATA   2   // SER IN du premier TPIC6C595
-#define SR_CLOCK  3   // SRCK (horloge shift) — commun aux deux chips
-#define SR_LATCH  4   // RCK  (horloge latch) — commun aux deux chips
-#define SR_OE     5   // G (Output Enable, actif bas) — PWM intensité globale
+// Declaration des Pins XIAO ESP32C3
+#define SR_DATA   2 // SER IN du premier TPIC6C595
+#define SR_CLOCK  3 // SRCK (horloge shift) — commun aux deux chips
+#define SR_LATCH  4 // RCK  (horloge latch) — commun aux deux chips
+#define SR_OE     5 // G (Output Enable, actif bas) — PWM intensité globale
 
 // Bitmask : bit N = moteur N+1 (bit 0 = M1, bit 14 = M15)
 uint16_t motorState = 0x0000;
@@ -60,7 +75,12 @@ uint8_t currentIntensity = 0;
 uint8_t masterIntensity = 0;
 bool masterActive = false;
 
-// Grille dorsale variable : 3, 4, 3, 2, 3 moteurs par rangée
+
+// ══════════════════════════════════════════════════════════════
+// PATTERN
+// ══════════════════════════════════════════════════════════════
+
+// Grille dorsale variable : 3, 4, 3, 2, 3 le nb des moteurs par ligne
 // Rangée 0 : [1] M1  M2  M3
 // Rangée 1 : [4] M4  M5  M6  M7
 // Rangée 2 : [8] M8  M9  M10
@@ -70,17 +90,15 @@ bool masterActive = false;
 static const uint8_t rowStart[] = {1, 4, 8, 11, 13};
 static const uint8_t rowLen[]   = {3, 4, 3, 2,  3};
 
-// ══════════════════════════════════════════════════════════════
-// PATTERN ENGINE
-// ══════════════════════════════════════════════════════════════
 
-uint8_t activePattern = 0;        // 0 = aucun pattern
-uint8_t patternIntensity = 0;     // intensité du pattern en cours
-unsigned long patternStepTime = 0;
-int patternStep = 0;
+uint8_t activePattern = 0; // par defaut aucun pattern
+uint8_t patternIntensity = 0;
+unsigned long patternStepTime = 0; // temps pour le pattern
+
+int patternStep = 0; 
 
 // ══════════════════════════════════════════════════════════════
-// BLE
+// BLUETOOTH
 // ══════════════════════════════════════════════════════════════
 
 BLEServer* pServer = nullptr;
@@ -97,7 +115,7 @@ void sendStatus(const char* msg) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// SHIFT REGISTER — envoi des 16 bits aux deux TPIC6C595
+// SHIFT REGISTER
 // ══════════════════════════════════════════════════════════════
 
 /// Pousse les 16 bits de motorState vers les registres
@@ -107,21 +125,23 @@ void updateShiftRegisters() {
     return;
   }
 
-  // Le premier octet envoyé traverse chip 1 et finit dans chip 2
-  // Le second octet envoyé reste dans chip 1
-  digitalWrite(SR_LATCH, LOW);
-  shiftOut(SR_DATA, SR_CLOCK, MSBFIRST, (motorState >> 8) & 0xFF);  // chip 2 : bits 8-15
-  shiftOut(SR_DATA, SR_CLOCK, MSBFIRST, motorState & 0xFF);          // chip 1 : bits 0-7
-  digitalWrite(SR_LATCH, HIGH);
+  // Source 16 bits division en deux 8 bits : https://forum.arduino.cc/t/changing-a-16bit-binary-number-into-two-8-bit-byte/44940/2
+  // Source ShiftOut : https://docs.arduino.cc/language-reference/en/functions/advanced-io/shiftOut/
+  digitalWrite(SR_LATCH, LOW); // pour que les I2Cs recois de donnent en sync avec l'horloge
+
+  // division du motorState xxxx xxxx xxxx xxxx en deux octets
+  shiftOut(SR_DATA, SR_CLOCK, MSBFIRST, (motorState >> 8));  // chip 2 recoit avec un shift de 8 bits (car chip 2 bits 8-15)
+  shiftOut(SR_DATA, SR_CLOCK, MSBFIRST, (motorState & 0xFF)); // chip 1 bits 0-7
+
+  digitalWrite(SR_LATCH, HIGH); // plus besoin d'ecouter
 }
 
-/// Met à jour l'intensité globale via PWM sur le pin G (actif bas)
+/// intensite via PWM sur le pin G (actif bas)
 void updateIntensity(uint8_t intensity) {
   currentIntensity = intensity;
   if (TEST_MODE) return;
 
-  // G est actif bas : 0 = sorties actives à 100%, 255 = sorties désactivées
-  analogWrite(SR_OE, 255 - intensity);
+  analogWrite(SR_OE, 255 - intensity); // G est actif bas : 0 = sorties actives à 100%, 255 = sorties désactivées
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -130,14 +150,27 @@ void updateIntensity(uint8_t intensity) {
 
 /// Active/désactive un moteur individuel (motorId 1-15)
 
-// intensity > 0 → bit ON + intensité globale mise à jour
-// intensity = 0 → bit OFF
+// intensity > 0 -> bit ON + intensité globale mise à jour
+// intensity = 0 -> bit OFF
 void setMotor(uint8_t motorId, uint8_t intensity) {
   if (motorId < 1 || motorId > NUM_MOTORS) return;
-  if (intensity > 0) {
-    motorState |= (1 << (motorId - 1));   // allumer ce moteur
-    updateIntensity(intensity);             // mettre à jour l'intensité globale
-  } else {
+  if (intensity > 0) 
+  {
+    motorState |= (1 << (motorId - 1));   // allumer ce moteur (transformation de int en bit)
+
+    // Petit example. Soit motorId = 5:
+    //
+    // 1 << (5-1) = 1 << 4 = 0000 0000 0001 0000 (ce qui permet de creer la masque necessaire)
+    //
+    // motorState before:     0000 0000 0010 0100  (motors 3 and 6 already actif)
+    // mask:                  0000 0000 0001 0000  (motor 5)
+    // ───────────────────────────────────────────
+    // motorState after |=:   0000 0000 0011 0100  (motors 3, 5, and 6 actif grace a l'operation OR)
+
+    updateIntensity(intensity);  // mettre à jour l'intensité globale
+  } 
+  else 
+  {
     motorState &= ~(1 << (motorId - 1));  // éteindre ce moteur
   }
   updateShiftRegisters();
@@ -145,11 +178,14 @@ void setMotor(uint8_t motorId, uint8_t intensity) {
 
 /// Active/désactive tous les moteurs
 void setAllMotors(uint8_t intensity) {
-  if (intensity > 0) {
-    motorState = 0x7FFF;  // bits 0-14 à 1 (15 moteurs)
+  if (intensity > 0) 
+  {
+    motorState = 0x7FFF;  // car 7fff en binaire est 0111 1111 1111 1111, ce qui correspond à tous les moteurs ON (bits 0-14 à 1)
     updateIntensity(intensity);
-  } else {
-    motorState = 0x0000;
+  } 
+  else // rester desactivé sinon
+  {
+    motorState = 0x0000; // tous les moteurs en tant que desactive
     updateIntensity(0);
   }
   updateShiftRegisters();
@@ -163,7 +199,7 @@ void stopAllMotors() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// PATTERNS — logique exécutée dans loop()
+// PATTERNS (à verifier)
 // ══════════════════════════════════════════════════════════════
 
 /// Vague : active les rangées de haut en bas, une par une
@@ -244,8 +280,9 @@ void patternCircleTick() {
   patternStep++;
 }
 
-/// Appelée dans loop() pour animer le pattern actif
-void updatePattern() {
+/// Chosoir le bon pattern parmi les fonctions predefinies
+void updatePattern() 
+{
   if (activePattern == 0) return;
 
   switch (activePattern) {
@@ -257,7 +294,7 @@ void updatePattern() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// SOME CALLBACKS
+//  CALLBACKS
 // ══════════════════════════════════════════════════════════════
 
 class ServerCallbacks : public BLEServerCallbacks {
@@ -417,10 +454,10 @@ void setup() {
     pinMode(SR_LATCH, OUTPUT);
     pinMode(SR_OE, OUTPUT);
 
-    // État initial : tout éteint
+    // Au debut tout éteint
     digitalWrite(SR_LATCH, LOW);
     digitalWrite(SR_CLOCK, LOW);
-    analogWrite(SR_OE, 255);  // G haut = sorties désactivées
+    analogWrite(SR_OE, 255);  // G haut = sorties désactivées !! (car G est actif bas)
     motorState = 0x0000;
     updateShiftRegisters();
   }
