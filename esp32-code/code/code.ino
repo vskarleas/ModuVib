@@ -141,7 +141,8 @@ void updateIntensity(uint8_t intensity) {
   currentIntensity = intensity;
   if (TEST_MODE) return;
 
-  analogWrite(SR_OE, 255 - intensity); // G est actif bas : 0 = sorties actives à 100%, 255 = sorties désactivées
+  // analogWrite(SR_OE, 255 - intensity); // G est actif bas : 0 = sorties actives à 100%, 255 = sorties désactivées
+  analogWrite(SR_OE, 0); // 100% for the first tests just to see if the motors are working correctly
 }
 
 // ══════════════════════════════════════════════════════════════
