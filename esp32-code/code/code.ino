@@ -63,7 +63,7 @@
 #define SR_DATA   2 // SER IN du premier TPIC6C595
 #define SR_CLOCK  3 // SRCK (horloge shift) — commun aux deux chips
 #define SR_LATCH  4 // RCK  (horloge latch) — commun aux deux chips
-#define SR_OE     5 // G (Output Enable, actif bas) — PWM intensité globale
+#define SR_OE     5 // G (Output Enable, actif bas PWM pour l'intensite)
 
 // Bitmask : bit N = moteur N+1 (bit 0 = M1, bit 14 = M15)
 uint16_t motorState = 0x0000;
