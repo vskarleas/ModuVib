@@ -32,7 +32,7 @@ Chaque commande envoyée par l'app Flutter au ESP32 est composée de 3 octets.
 
 ### Commands
 
-| CMD      | Name                  | Target                       | Value                                | Example                                      | Signification                  |
+| CMD      | Nom                   | Cible                        | Valeur                               | Exemple                                      | Signification                  |
 | -------- | --------------------- | ---------------------------- | ------------------------------------ | -------------------------------------------- | ------------------------------ |
 | `0x01` | Moteur individuel     | ID moteur (0x01–0x0F)       | Intensité (0x00=OFF, 0x01–0xFF=ON) | `01 05 FF` → Moteur 5 ON pleine puissance | Contrôle Manuel               |
 | `0x02` | Pattern               | ID pattern (voir ci-dessous) | Intensité (0x00–0xFF)              | `02 01 BF` → Vague à 75%                 | Programmes                     |
