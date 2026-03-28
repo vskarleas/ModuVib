@@ -47,8 +47,14 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
   /// Ensemble des moteurs sélectionnés (flat index 0–14)
   final Set<int> _selectedMotors = {};
 
-  /// true = Précision (single), false = Dessin Libre (multi)
-  bool _precisionMode = true;
+  /// Keys pour hit-testing pendant le drag
+  final List<GlobalKey> _motorKeys = List.generate(15, (_) => GlobalKey());
+
+  /// null = pas de drag en cours, true = on sélectionne, false = on désélectionne
+  bool? _dragSelecting;
+
+  /// Dernier index touché pendant le drag (pour éviter de re-toggler le même)
+  int? _lastInteractedIndex;
 
   /// Convert flat index (0–14) to motor ID using the variable-width grid.
   int _motorIdForIndex(int flatIndex) {
@@ -63,52 +69,87 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
     return 0x01;
   }
 
-  Future<void> _toggleMotor(int index) async {
+  /// Retourne le flat index du moteur sous la position globale, ou null.
+  int? _indexAtPosition(Offset globalPosition) {
+    for (int i = 0; i < _motorKeys.length; i++) {
+      final ctx = _motorKeys[i].currentContext;
+      if (ctx == null) continue;
+      final box = ctx.findRenderObject() as RenderBox?;
+      if (box == null) continue;
+      final topLeft = box.localToGlobal(Offset.zero);
+      final rect = Rect.fromLTWH(
+          topLeft.dx, topLeft.dy, box.size.width, box.size.height);
+      if (rect.contains(globalPosition)) return i;
+    }
+    return null;
+  }
+
+  void _handlePointerDown(Offset globalPosition) {
+    final index = _indexAtPosition(globalPosition);
+    if (index == null) return;
+    _dragSelecting = !_selectedMotors.contains(index);
+    _lastInteractedIndex = index;
+    if (_dragSelecting!) {
+      _activateMotor(index);
+    } else {
+      _deactivateMotor(index);
+    }
+  }
+
+  void _handlePointerMove(Offset globalPosition) {
+    if (_dragSelecting == null) return;
+    final index = _indexAtPosition(globalPosition);
+    if (index == null || index == _lastInteractedIndex) return;
+    _lastInteractedIndex = index;
+    if (_dragSelecting! && !_selectedMotors.contains(index)) {
+      _activateMotor(index);
+    } else if (!_dragSelecting! && _selectedMotors.contains(index)) {
+      _deactivateMotor(index);
+    }
+  }
+
+  void _handlePointerUp() {
+    _dragSelecting = null;
+    _lastInteractedIndex = null;
+  }
+
+  Future<void> _activateMotor(int index) async {
     final bleService = ref.read(bleServiceProvider);
     final intensity = ref.read(masterIntensityProvider);
     final motorId = _motorIdForIndex(index);
-
-    if (_selectedMotors.contains(index)) {
-      bleService.sendCommand(
-        BleProtocol.motorCommand(motorId, 0x00),
-      );
-      setState(() => _selectedMotors.remove(index));
-    } else {
-      final byte = BleProtocol.intensityToByte(intensity);
-      final sent = await bleService.sendCommand(
-        BleProtocol.motorCommand(motorId, byte),
-      );
-      if (!sent) {
-        if (mounted) _showNotConnected(context);
-        return;
-      }
-      setState(() {
-        // En mode Précision, désélectionner les autres d'abord
-        if (_precisionMode && _selectedMotors.isNotEmpty) {
-          for (final prevIndex in _selectedMotors) {
-            bleService.sendCommand(
-              BleProtocol.motorCommand(_motorIdForIndex(prevIndex), 0x00),
-            );
-          }
-          _selectedMotors.clear();
-        }
-        _selectedMotors.add(index);
-      });
-      if (ref.read(sessionStartTimeProvider) == null) {
-        ref.read(sessionStartTimeProvider.notifier).state = DateTime.now();
-      }
-    }
-
-    // Mettre à jour le provider des moteurs actifs
-    final motors = <int, int>{};
     final byte = BleProtocol.intensityToByte(intensity);
+    final sent =
+        await bleService.sendCommand(BleProtocol.motorCommand(motorId, byte));
+    if (!sent) {
+      if (mounted) _showNotConnected(context);
+      return;
+    }
+    setState(() => _selectedMotors.add(index));
+    if (ref.read(sessionStartTimeProvider) == null) {
+      ref.read(sessionStartTimeProvider.notifier).state = DateTime.now();
+    }
+    _updateMotorProviders();
+    HapticFeedback.lightImpact();
+  }
+
+  Future<void> _deactivateMotor(int index) async {
+    final bleService = ref.read(bleServiceProvider);
+    final motorId = _motorIdForIndex(index);
+    bleService.sendCommand(BleProtocol.motorCommand(motorId, 0x00));
+    setState(() => _selectedMotors.remove(index));
+    _updateMotorProviders();
+    HapticFeedback.lightImpact();
+  }
+
+  void _updateMotorProviders() {
+    final intensity = ref.read(masterIntensityProvider);
+    final byte = BleProtocol.intensityToByte(intensity);
+    final motors = <int, int>{};
     for (final i in _selectedMotors) {
       motors[i] = byte;
     }
     ref.read(activeMotorsProvider.notifier).state = motors;
     ref.read(motorsRunningProvider.notifier).state = _selectedMotors.isNotEmpty;
-
-    HapticFeedback.lightImpact();
   }
 
   Future<void> _stopAll() async {
@@ -117,9 +158,9 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
     final startTime = ref.read(sessionStartTimeProvider);
     final intensity = ref.read(masterIntensityProvider);
     await ref.read(sessionServiceProvider).logCurrentSession(
-      startTime: startTime,
-      meanIntensity: intensity,
-    );
+          startTime: startTime,
+          meanIntensity: intensity,
+        );
     ref.read(sessionStartTimeProvider.notifier).state = null;
     ref.invalidate(sessionHistoryProvider);
 
@@ -160,66 +201,33 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Touchez le dos pour activer les moteurs',
-              style:
-                  GoogleFonts.poppins(fontSize: 14, color: textSecondary),
-            ),
-            const SizedBox(height: 16),
-
-            // ── Mode tabs ─────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF2A2A2A)
-                    : AppColors.backgroundAlt,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  _ModeTab(
-                    label: 'Précision',
-                    icon: LucideIcons.crosshair,
-                    isSelected: _precisionMode,
-                    isDark: isDark,
-                    onTap: () => setState(() {
-                      _precisionMode = true;
-                      if (_selectedMotors.length > 1) {
-                        final keep = _selectedMotors.first;
-                        _selectedMotors
-                          ..clear()
-                          ..add(keep);
-                      }
-                    }),
-                  ),
-                  _ModeTab(
-                    label: 'Dessin Libre',
-                    icon: LucideIcons.penTool,
-                    isSelected: !_precisionMode,
-                    isDark: isDark,
-                    onTap: () => setState(() => _precisionMode = false),
-                  ),
-                ],
-              ),
+              'Touchez ou glissez pour activer les moteurs',
+              style: GoogleFonts.poppins(fontSize: 14, color: textSecondary),
             ),
             const SizedBox(height: 20),
 
             // ── Torso card with motors ────────────────────────
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(20),
-                border:
-                    Border.all(color: AppColors.divider.withValues(alpha: 0.2)),
-              ),
-              child: CustomPaint(
-                painter: _TorsoPainter(isDark: isDark),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 28, horizontal: 4),
-                  child: _buildMotorRows(),
+            Listener(
+              onPointerDown: (e) => _handlePointerDown(e.position),
+              onPointerMove: (e) => _handlePointerMove(e.position),
+              onPointerUp: (_) => _handlePointerUp(),
+              onPointerCancel: (_) => _handlePointerUp(),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: AppColors.divider.withValues(alpha: 0.2)),
+                ),
+                child: CustomPaint(
+                  painter: _TorsoPainter(isDark: isDark),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 28, horizontal: 4),
+                    child: _buildMotorRows(),
+                  ),
                 ),
               ),
             ),
@@ -320,9 +328,9 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
         final idx = flatIndex;
         motorWidgets.add(
           _MotorDot(
+            key: _motorKeys[idx],
             motorId: rowMotors[col],
             isSelected: _selectedMotors.contains(idx),
-            onTap: () => _toggleMotor(idx),
           ),
         );
         flatIndex++;
@@ -411,89 +419,17 @@ class _TorsoPainter extends CustomPainter {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Tab de mode (Précision / Dessin Libre)
-// ══════════════════════════════════════════════════════════════
-
-class _ModeTab extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final bool isDark;
-  final VoidCallback onTap;
-
-  const _ModeTab({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.isDark,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final selectedBg = isDark ? const Color(0xFF333333) : Colors.white;
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? selectedBg : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// Motor dot — circular button matching the torso image design
+// Motor dot — purely visual, interaction handled by parent Listener
 // ══════════════════════════════════════════════════════════════
 
 class _MotorDot extends StatelessWidget {
   final int motorId;
   final bool isSelected;
-  final VoidCallback onTap;
 
   const _MotorDot({
+    super.key,
     required this.motorId,
     required this.isSelected,
-    required this.onTap,
   });
 
   @override
@@ -501,68 +437,64 @@ class _MotorDot extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const size = 52.0;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: size,
-        height: size + 16,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
+    return SizedBox(
+      width: size,
+      height: size + 16,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSelected
+                  ? AppColors.primary.withValues(alpha: 0.18)
+                  : isDark
+                      ? const Color(0xFF252535)
+                      : AppColors.primary.withValues(alpha: 0.06),
+              border: Border.all(
                 color: isSelected
-                    ? AppColors.primary.withValues(alpha: 0.18)
-                    : isDark
-                        ? const Color(0xFF252535)
-                        : AppColors.primary.withValues(alpha: 0.06),
-                border: Border.all(
+                    ? AppColors.primary.withValues(alpha: 0.5)
+                    : AppColors.primary.withValues(alpha: 0.18),
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: isSelected ? 16 : 10,
+                height: isSelected ? 16 : 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
                   color: isSelected
-                      ? AppColors.primary.withValues(alpha: 0.5)
-                      : AppColors.primary.withValues(alpha: 0.18),
-                  width: isSelected ? 2 : 1,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.25),
-                          blurRadius: 12,
-                          spreadRadius: 2,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Center(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: isSelected ? 16 : 10,
-                  height: isSelected ? 16 : 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.primary.withValues(alpha: 0.35),
-                  ),
+                      ? AppColors.primary
+                      : AppColors.primary.withValues(alpha: 0.35),
                 ),
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              'M$motorId',
-              style: GoogleFonts.poppins(
-                fontSize: 9,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
-              ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'M$motorId',
+            style: GoogleFonts.poppins(
+              fontSize: 9,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+              color:
+                  isSelected ? AppColors.primary : AppColors.textSecondary,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

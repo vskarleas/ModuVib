@@ -90,7 +90,7 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsTile(
               icon: LucideIcons.refreshCw,
               title: 'Firmware',
-              subtitle: 'V5.1',
+              subtitle: 'V6.1',
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
@@ -522,7 +522,7 @@ class SettingsScreen extends ConsumerWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Version actuelle : V5.1',
+                'Version actuelle : V6.1',
                 style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
               ),
             ),
@@ -569,9 +569,22 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                     _FirmwareVersionTile(
-                      version: 'V5.1',
+                      version: 'V6.1',
                       date: 'Mars 2026',
                       isCurrent: true,
+                      changes: const [
+                        'Mapping logique→physique des moteurs dans le firmware ESP32 (#define M1..M15) pour reconfigurer le câblage sans modifier le reste du code',
+                        'Contrôle de l\'intensité des vibrations via PWM sur la broche G (OE) du TPIC6C595',
+                        'Refonte de l\'écran de contrôle manuel : sélection et désélection des moteurs par toucher ou glisser-déposer',
+                      ],
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    const SizedBox(height: 16),
+                    _FirmwareVersionTile(
+                      version: 'V5.1',
+                      date: 'Mars 2026',
+                      isCurrent: false,
                       changes: const [
                         'Representation en format dos sur la page de selection manuelle, et control via OPEN DRAIN for ESP32',
                       ],
@@ -754,7 +767,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             _BatteryInfoRow(
               label: 'Version',
-              value: '5.1.0',
+              value: '6.1.0',
               textPrimary: textPrimary,
               textSecondary: textSecondary,
             ),

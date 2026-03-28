@@ -59,11 +59,34 @@
 
 #define NUM_MOTORS 15
 
+// Position physique des moteurs
+// Equatiom : value = (chip_number - 1) * 8 + drain_number
+#define M1   0
+#define M2   1
+#define M3   2
+#define M4   3
+#define M5   4
+#define M6   5
+#define M7   6
+#define M8   7
+#define M9   8
+#define M10  9
+#define M11  10
+#define M12  11
+#define M13  12
+#define M14  13
+#define M15  14
+
+// Mapping logique -> physique : reference les defines ci-dessus dans l'ordre M1..M15
+static const uint8_t motorMap[NUM_MOTORS] = {
+  M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15
+};
+
 // Declaration des Pins XIAO ESP32C3
 #define SR_DATA   10 // SER IN du premier TPIC6C595
-#define SR_CLOCK  9 // SRCK (horloge shift) — commun aux deux chips
-#define SR_LATCH  20 // RCK  (horloge latch) — commun aux deux chips
-#define SR_OE     8 // G (Output Enable, actif bas PWM pour l'intensite)
+#define SR_CLOCK   9 // SRCK (horloge shift) — commun aux deux chips
+#define SR_LATCH   20 // RCK  (horloge latch) — commun aux deux chips
+#define SR_OE     8 // G actif bas PWM pour l'intensite !
 
 // Bitmask : bit N = moteur N+1 (bit 0 = M1, bit 14 = M15)
 uint16_t motorState = 0x0000;
@@ -141,11 +164,8 @@ void updateIntensity(uint8_t intensity) {
   currentIntensity = intensity;
   if (TEST_MODE) return;
 
-  if (intensity > 0) {
-    digitalWrite(SR_OE, LOW);   // activer les sorties
-  } else {
-    digitalWrite(SR_OE, HIGH);  // couper les sorties
-  }
+  analogWrite(SR_OE, 255 - intensity); // G est actif bas : 0 = sorties actives à 100%, 255 = sorties désactivées
+  
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -160,7 +180,7 @@ void setMotor(uint8_t motorId, uint8_t intensity) {
   if (motorId < 1 || motorId > NUM_MOTORS) return;
   if (intensity > 0) 
   {
-    motorState |= (1 << (motorId - 1));   // allumer ce moteur (transformation de int en bit)
+    motorState |= (1 << motorMap[motorId - 1]);   // allumer ce moteur via le mapping logique->physique
 
     // Petit example. Soit motorId = 5:
     //
@@ -175,40 +195,35 @@ void setMotor(uint8_t motorId, uint8_t intensity) {
   } 
   else 
   {
-    motorState &= ~(1 << (motorId - 1));  // éteindre ce moteur
+    motorState &= ~(1 << motorMap[motorId - 1]);  // éteindre ce moteur via le mapping logique->physique
   }
   updateShiftRegisters();
 }
 
 /// Active/désactive tous les moteurs
 void setAllMotors(uint8_t intensity) {
-  // 1. Couper les sorties pendant le chargement
-  digitalWrite(SR_OE, HIGH);
-
-  // 2. Préparer l'état voulu
-  if (intensity > 0) {
-    motorState = 0xFFFF;   // test volontaire : exactement comme 255 + 255
-  } else {
-    motorState = 0x0000;
+  if (intensity > 0) 
+  {
+    motorState = 0x7FFF;  // car 7fff en binaire est 0111 1111 1111 1111, ce qui correspond à tous les moteurs ON (bits 0-14 à 1)
+    updateIntensity(intensity);
+  } 
+  else // rester desactivé sinon
+  {
+    motorState = 0x0000; // tous les moteurs en tant que desactive
+    updateIntensity(0);
   }
-
-  // 3. Envoyer aux shift registers
   updateShiftRegisters();
 
-  // 4. Réactiver les sorties si on veut allumer
-  if (intensity > 0) {
-    digitalWrite(SR_OE, LOW);
-  } else {
-    digitalWrite(SR_OE, HIGH);
-  }
-
-  Serial.printf("[setAllMotors] motorState=0x%04X\n", motorState);
+  Serial.printf("[All motors] motorState=0x%04X\n", motorState);
 }
+
+/// Coupe tous les moteurs
 void stopAllMotors() {
   setAllMotors(0);
   masterActive = false;
   activePattern = 0;
 }
+
 // ══════════════════════════════════════════════════════════════
 // PATTERNS (à verifier)
 // ══════════════════════════════════════════════════════════════
@@ -226,7 +241,7 @@ void patternWaveTick() {
   int row = patternStep % NUM_ROWS;
   for (int col = 0; col < rowLen[row]; col++) {
     uint8_t motorId = rowStart[row] + col;
-    motorState |= (1 << (motorId - 1));
+    motorState |= (1 << motorMap[motorId - 1]);
   }
   updateIntensity(patternIntensity);
   updateShiftRegisters();
@@ -246,7 +261,7 @@ void patternRainTick() {
   int count = random(2, 5);
   for (int i = 0; i < count; i++) {
     uint8_t motorId = random(1, NUM_MOTORS + 1);
-    motorState |= (1 << (motorId - 1));
+    motorState |= (1 << motorMap[motorId - 1]);
   }
   updateIntensity(patternIntensity);
   updateShiftRegisters();
@@ -283,8 +298,8 @@ void patternCircleTick() {
   // Moteur courant + traînée (moteur précédent)
   int idx = patternStep % perimeterLen;
   int prevIdx = (idx - 1 + perimeterLen) % perimeterLen;
-  motorState |= (1 << (perimeterIds[idx] - 1));
-  motorState |= (1 << (perimeterIds[prevIdx] - 1));
+  motorState |= (1 << motorMap[perimeterIds[idx] - 1]);
+  motorState |= (1 << motorMap[perimeterIds[prevIdx] - 1]);
 
   updateIntensity(patternIntensity);
   updateShiftRegisters();
@@ -468,7 +483,7 @@ void setup() {
     // Au debut tout éteint
     digitalWrite(SR_LATCH, LOW);
     digitalWrite(SR_CLOCK, LOW);
-    analogWrite(SR_OE, HIGH);  // G haut = sorties désactivées !! (car G est actif bas)
+    analogWrite(SR_OE, 255);  // G haut = sorties désactivées !! (car G est actif bas)
     motorState = 0x0000;
     updateShiftRegisters();
   }

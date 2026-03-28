@@ -1,6 +1,52 @@
-build/
+# Flutter / Dart
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+.packages
+pubspec.lock
 *.iml
 *.cache.dill.track.dill
+doc/api/
+
+# Build outputs
+build/
+android/build/
+ios/build/
+macos/build/
+linux/build/
+windows/build/
+web/build/
+
+# Android
+android/.gradle/
+android/local.properties
+android/captures/
+android/key.properties
+*.jks
+*.keystore
+
+# iOS / macOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+macos/Pods/
+macos/.symlinks/
+*.xcworkspace/xcuserdata/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
+
+# Environment
+.env
+*.env.*
