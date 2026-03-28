@@ -213,6 +213,9 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
               onHorizontalDragStart: (_) {},
               onHorizontalDragUpdate: (_) {},
               onHorizontalDragEnd: (_) {},
+              onVerticalDragStart: (_) {},
+              onVerticalDragUpdate: (_) {},
+              onVerticalDragEnd: (_) {},
               child: Listener(
               onPointerDown: (e) => _handlePointerDown(e.position),
               onPointerMove: (e) => _handlePointerMove(e.position),
@@ -385,12 +388,12 @@ class _TorsoPainter extends CustomPainter {
     path.quadraticBezierTo(w * 0.80, h * 0.64, w * 0.76, h * 0.72);
 
     // Right lower (hip flare → bottom)
-    path.quadraticBezierTo(w * 0.86, h * 0.80, w * 0.80, h * 0.90);
-    path.quadraticBezierTo(w * 0.68, h * 0.97, w * 0.50, h);
+    path.quadraticBezierTo(w * 0.82, h * 0.79, w * 0.78, h * 0.88);
+    path.quadraticBezierTo(w * 0.70, h * 0.97, w * 0.50, h);
 
     // Left lower
-    path.quadraticBezierTo(w * 0.32, h * 0.97, w * 0.20, h * 0.90);
-    path.quadraticBezierTo(w * 0.14, h * 0.80, w * 0.24, h * 0.72);
+    path.quadraticBezierTo(w * 0.30, h * 0.97, w * 0.22, h * 0.88);
+    path.quadraticBezierTo(w * 0.18, h * 0.79, w * 0.24, h * 0.72);
 
     // Left side (waist → upper back)
     path.quadraticBezierTo(w * 0.20, h * 0.64, w * 0.16, h * 0.52);
