@@ -60,7 +60,7 @@
 #define NUM_MOTORS 15
 
 // Position physique des moteurs
-// Equatiom : value = (chip_number - 1) * 8 + drain_number
+// value = (chip_number - 1) * 8 + drain_number
 #define M1   0
 #define M2   1
 #define M3   2
