@@ -7,6 +7,9 @@
 * V4.2 : Fixed ios security issues with continues bluetooth
 * V5.0 : Fixed android communication issue with the ESP32 BLE board and some presentatio features on the settings page
 * V5.1 : Updated the code.ino for it to work using the OPEN DRAINS where the motors are connected an dudpated the design of the manual page.
+* V6.2 :
+  * Silhouette dorsale élargie en bas pour que M13 et M15 restent à l'intérieur du contour
+  * Correction du conflit de gestes : le glisser-déposer sur la grille ne déclenche plus le changement de page
 * V6.1 :
   * Ajout d'un mapping logique→physique des moteurs dans le firmware ESP32 (`#define M1..M15`) permettant de reconfigurer le câblage sans modifier le reste du code
   * Contrôle de l'intensité via PWM sur la broche G (OE) du TPIC6C595 (`analogWrite`)

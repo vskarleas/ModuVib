@@ -207,7 +207,13 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
             const SizedBox(height: 20),
 
             // ── Torso card with motors ────────────────────────
-            Listener(
+            // GestureDetector claims horizontal drags so the parent PageView
+            // does not swipe pages while the user is selecting motors.
+            GestureDetector(
+              onHorizontalDragStart: (_) {},
+              onHorizontalDragUpdate: (_) {},
+              onHorizontalDragEnd: (_) {},
+              child: Listener(
               onPointerDown: (e) => _handlePointerDown(e.position),
               onPointerMove: (e) => _handlePointerMove(e.position),
               onPointerUp: (_) => _handlePointerUp(),
@@ -230,7 +236,7 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
                   ),
                 ),
               ),
-            ),
+            )),
             const SizedBox(height: 16),
 
             // ── Status bar ────────────────────────────────────
@@ -378,13 +384,13 @@ class _TorsoPainter extends CustomPainter {
     path.quadraticBezierTo(w * 0.88, h * 0.40, w * 0.84, h * 0.52);
     path.quadraticBezierTo(w * 0.80, h * 0.64, w * 0.76, h * 0.72);
 
-    // Right lower (hip → bottom)
-    path.quadraticBezierTo(w * 0.70, h * 0.84, w * 0.62, h * 0.93);
-    path.quadraticBezierTo(w * 0.56, h * 0.98, w * 0.50, h);
+    // Right lower (hip flare → bottom)
+    path.quadraticBezierTo(w * 0.86, h * 0.80, w * 0.80, h * 0.90);
+    path.quadraticBezierTo(w * 0.68, h * 0.97, w * 0.50, h);
 
     // Left lower
-    path.quadraticBezierTo(w * 0.44, h * 0.98, w * 0.38, h * 0.93);
-    path.quadraticBezierTo(w * 0.30, h * 0.84, w * 0.24, h * 0.72);
+    path.quadraticBezierTo(w * 0.32, h * 0.97, w * 0.20, h * 0.90);
+    path.quadraticBezierTo(w * 0.14, h * 0.80, w * 0.24, h * 0.72);
 
     // Left side (waist → upper back)
     path.quadraticBezierTo(w * 0.20, h * 0.64, w * 0.16, h * 0.52);
