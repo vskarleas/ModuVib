@@ -24,7 +24,7 @@
 // ══════════════════════════════════════════════════════════════
 // MODE TEST
 // ══════════════════════════════════════════════════════════════
-#define TEST_MODE true
+#define TEST_MODE false
 
 // ══════════════════════════════════════════════════════════════
 // CONFIGURATION 
@@ -61,9 +61,9 @@
 
 // Declaration des Pins XIAO ESP32C3
 #define SR_DATA   10 // SER IN du premier TPIC6C595
-#define SR_CLOCK   9 // SRCK (horloge shift) — commun aux deux chips
-#define SR_LATCH   20 // RCK  (horloge latch) — commun aux deux chips
-#define SR_OE     8 // G actif bas PWM pour l'intensite !
+#define SR_CLOCK  9 // SRCK (horloge shift) — commun aux deux chips
+#define SR_LATCH  20 // RCK  (horloge latch) — commun aux deux chips
+#define SR_OE     8 // G (Output Enable, actif bas PWM pour l'intensite)
 
 // Bitmask : bit N = moteur N+1 (bit 0 = M1, bit 14 = M15)
 uint16_t motorState = 0x0000;
@@ -141,8 +141,11 @@ void updateIntensity(uint8_t intensity) {
   currentIntensity = intensity;
   if (TEST_MODE) return;
 
-  // analogWrite(SR_OE, 255 - intensity); // G est actif bas : 0 = sorties actives à 100%, 255 = sorties désactivées
-  analogWrite(SR_OE, 0); // 100% for the first tests just to see if the motors are working correctly
+  if (intensity > 0) {
+    digitalWrite(SR_OE, LOW);   // activer les sorties
+  } else {
+    digitalWrite(SR_OE, HIGH);  // couper les sorties
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -179,26 +182,33 @@ void setMotor(uint8_t motorId, uint8_t intensity) {
 
 /// Active/désactive tous les moteurs
 void setAllMotors(uint8_t intensity) {
-  if (intensity > 0) 
-  {
-    motorState = 0x7FFF;  // car 7fff en binaire est 0111 1111 1111 1111, ce qui correspond à tous les moteurs ON (bits 0-14 à 1)
-    updateIntensity(intensity);
-  } 
-  else // rester desactivé sinon
-  {
-    motorState = 0x0000; // tous les moteurs en tant que desactive
-    updateIntensity(0);
-  }
-  updateShiftRegisters();
-}
+  // 1. Couper les sorties pendant le chargement
+  digitalWrite(SR_OE, HIGH);
 
-/// Coupe tous les moteurs
+  // 2. Préparer l'état voulu
+  if (intensity > 0) {
+    motorState = 0xFFFF;   // test volontaire : exactement comme 255 + 255
+  } else {
+    motorState = 0x0000;
+  }
+
+  // 3. Envoyer aux shift registers
+  updateShiftRegisters();
+
+  // 4. Réactiver les sorties si on veut allumer
+  if (intensity > 0) {
+    digitalWrite(SR_OE, LOW);
+  } else {
+    digitalWrite(SR_OE, HIGH);
+  }
+
+  Serial.printf("[setAllMotors] motorState=0x%04X\n", motorState);
+}
 void stopAllMotors() {
   setAllMotors(0);
   masterActive = false;
   activePattern = 0;
 }
-
 // ══════════════════════════════════════════════════════════════
 // PATTERNS (à verifier)
 // ══════════════════════════════════════════════════════════════
@@ -458,7 +468,7 @@ void setup() {
     // Au debut tout éteint
     digitalWrite(SR_LATCH, LOW);
     digitalWrite(SR_CLOCK, LOW);
-    analogWrite(SR_OE, 255);  // G haut = sorties désactivées !! (car G est actif bas)
+    analogWrite(SR_OE, HIGH);  // G haut = sorties désactivées !! (car G est actif bas)
     motorState = 0x0000;
     updateShiftRegisters();
   }
