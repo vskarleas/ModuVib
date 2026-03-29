@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Torso Path Editor</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f0;
+    --text: #1a1a1a;
+    --text2: #6b6b6b;
+    --border: rgba(0,0,0,0.12);
+    --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --on-curve: #1D9E75;
+    --control: #D85A30;
+    --guide: rgba(0,0,0,0.15);
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --bg2: #262626;
+      --text: #e8e8e8;
+      --text2: #999999;
+      --border: rgba(255,255,255,0.12);
+      --guide: rgba(255,255,255,0.15);
+      --on-curve: #5DCAA5;
+      --control: #F0997B;
+    }
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    padding: 1.5rem;
+    min-height: 100vh;
+  }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 1.25rem;
+  }
+
+  .layout {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .canvas-wrap {
+    flex: 1;
+    min-width: 300px;
+    max-width: 450px;
+  }
+
+  .code-wrap {
+    flex: 1;
+    min-width: 300px;
+  }
+
+  svg#canvas {
+    width: 100%;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg2);
+    display: block;
+  }
+
+  .code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .code-header span {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  pre#codeOut {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text);
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    overflow: auto;
+    max-height: 480px;
+    white-space: pre-wrap;
+    tab-size: 4;
+  }
+
+  .controls {
+    margin-top: 14px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  button {
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 5px 14px;
+    background: transparent;
+    color: var(--text);
+    border: 0.5px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  button:hover { background: var(--bg2); }
+  button:active { transform: scale(0.98); }
+
+  label {
+    font-size: 13px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  .handle { cursor: grab; }
+  .handle:active { cursor: grabbing; }
+</style>
+</head>
+<body>
+
+<h1>Torso path editor</h1>
+
+<div class="layout">
+  <div class="canvas-wrap">
+    <svg id="canvas" viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:var(--on-curve);"></span>On-curve point</span>
+      <span><span class="legend-dot" style="background:var(--control);"></span>Control point</span>
+    </div>
+  </div>
+  <div class="code-wrap">
+    <div class="code-header">
+      <span>Dart code</span>
+      <button id="copyBtn">Copy</button>
+    </div>
+    <pre id="codeOut"></pre>
+  </div>
+</div>
+
+<div class="controls">
+  <button id="resetBtn">Reset</button>
+  <label><input type="checkbox" id="showCtrl" checked> Show control points</label>
+  <label><input type="checkbox" id="showLabels" checked> Show labels</label>
+</div>
+
+<script>
+const W = 400, H = 500;
+const svg = document.getElementById('canvas');
+const codeOut = document.getElementById('codeOut');
+
+const defaultPts = [
+  {id:'neck_L',   x:0.36, y:0.01, on:true},
+  {id:'neck_C',   x:0.50, y:0.00, on:false},
+  {id:'neck_R',   x:0.64, y:0.01, on:true},
+
+  {id:'rShldr1',  x:0.82, y:0.03, on:false},
+  {id:'rShldr2',  x:0.90, y:0.10, on:true},
+  {id:'rShldr3',  x:0.95, y:0.16, on:false},
+  {id:'rShldr4',  x:0.92, y:0.25, on:true},
+
+  {id:'rUp1',     x:0.88, y:0.40, on:false},
+  {id:'rUp2',     x:0.84, y:0.52, on:true},
+  {id:'rUp3',     x:0.80, y:0.64, on:false},
+  {id:'rUp4',     x:0.76, y:0.72, on:true},
+
+  {id:'rLow1',    x:0.82, y:0.79, on:false},
+  {id:'rLow2',    x:0.78, y:0.88, on:true},
+  {id:'rLow3',    x:0.70, y:0.97, on:false},
+  {id:'rLow4',    x:0.50, y:1.00, on:true},
+
+  {id:'lLow1',    x:0.30, y:0.97, on:false},
+  {id:'lLow2',    x:0.22, y:0.88, on:true},
+  {id:'lLow3',    x:0.18, y:0.79, on:false},
+  {id:'lLow4',    x:0.24, y:0.72, on:true},
+
+  {id:'lUp1',     x:0.20, y:0.64, on:false},
+  {id:'lUp2',     x:0.16, y:0.52, on:true},
+  {id:'lUp3',     x:0.12, y:0.40, on:false},
+  {id:'lUp4',     x:0.08, y:0.25, on:true},
+
+  {id:'lShldr1',  x:0.05, y:0.16, on:false},
+  {id:'lShldr2',  x:0.10, y:0.10, on:true},
+  {id:'lShldr3',  x:0.18, y:0.03, on:false},
+  {id:'lShldr4',  x:0.36, y:0.01, on:true},
+];
+
+let pts = JSON.parse(JSON.stringify(defaultPts));
+let dragging = null;
+
+function px(p) { return { x: p.x * W, y: p.y * H }; }
+
+function render() {
+  const showCtrl = document.getElementById('showCtrl').checked;
+  const showLabels = document.getElementById('showLabels').checked;
+  let s = '';
+
+  // Build path
+  let d = '';
+  const p0 = px(pts[0]);
+  d += `M ${p0.x.toFixed(1)} ${p0.y.toFixed(1)}`;
+  for (let i = 1; i < pts.length; i += 2) {
+    const cp = px(pts[i]);
+    const ep = px(pts[i + 1]);
+    d += ` Q ${cp.x.toFixed(1)} ${cp.y.toFixed(1)} ${ep.x.toFixed(1)} ${ep.y.toFixed(1)}`;
+  }
+  d += ' Z';
+
+  // Filled shape (subtle)
+  s += `<path d="${d}" fill="var(--on-curve)" fill-opacity="0.06" stroke="none"/>`;
+  s += `<path d="${d}" fill="none" stroke="var(--text)" stroke-width="2" stroke-opacity="0.7"/>`;
+
+  // Guide lines
+  if (showCtrl) {
+    for (let i = 1; i < pts.length; i += 2) {
+      const cp = px(pts[i]);
+      const prev = px(pts[i - 1]);
+      const next = px(pts[i + 1]);
+      s += `<line x1="${prev.x}" y1="${prev.y}" x2="${cp.x}" y2="${cp.y}" stroke="var(--guide)" stroke-width="0.8" stroke-dasharray="4,3"/>`;
+      s += `<line x1="${cp.x}" y1="${cp.y}" x2="${next.x}" y2="${next.y}" stroke="var(--guide)" stroke-width="0.8" stroke-dasharray="4,3"/>`;
+    }
+  }
+
+  // Points
+  pts.forEach((p, i) => {
+    const pp = px(p);
+    const isOn = p.on;
+    const r = isOn ? 7 : 5;
+    const fill = isOn ? 'var(--on-curve)' : 'var(--control)';
+    s += `<circle cx="${pp.x}" cy="${pp.y}" r="${r}" fill="${fill}" stroke="var(--bg)" stroke-width="1.5" data-idx="${i}" class="handle"/>`;
+    if (showLabels) {
+      s += `<text x="${pp.x + 9}" y="${pp.y - 9}" font-size="10" fill="var(--text2)" font-family="monospace">${p.id}</text>`;
+    }
+  });
+
+  svg.innerHTML = s;
+  updateCode();
+}
+
+function updateCode() {
+  const f = (v) => (Math.round(v * 100) / 100).toFixed(2);
+  let c = '';
+  c += `// Top center (neck)\n`;
+  c += `path.moveTo(w * ${f(pts[0].x)}, h * ${f(pts[0].y)});\n`;
+  c += `path.quadraticBezierTo(w * ${f(pts[1].x)}, h * ${f(pts[1].y)}, w * ${f(pts[2].x)}, h * ${f(pts[2].y)});\n`;
+
+  const sections = [
+    [3, 'Right shoulder'],
+    [7, 'Right side (upper back \u2192 waist)'],
+    [11, 'Right lower (hip flare \u2192 bottom)'],
+    [15, 'Left lower'],
+    [19, 'Left side (waist \u2192 upper back)'],
+    [23, 'Left shoulder'],
+  ];
+  let si = 0;
+  for (let i = 3; i < pts.length; i += 2) {
+    if (si < sections.length && sections[si][0] === i) {
+      c += `\n    // ${sections[si][1]}\n`;
+      si++;
+    }
+    c += `    path.quadraticBezierTo(w * ${f(pts[i].x)}, h * ${f(pts[i].y)}, w * ${f(pts[i + 1].x)}, h * ${f(pts[i + 1].y)});\n`;
+  }
+  codeOut.textContent = c;
+}
+
+function getMousePos(e) {
+  const rect = svg.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+}
+
+svg.addEventListener('pointerdown', (e) => {
+  const pos = getMousePos(e);
+  let closest = -1, minD = 22;
+  pts.forEach((p, i) => {
+    const pp = px(p);
+    const d = Math.hypot(pp.x - pos.x, pp.y - pos.y);
+    if (d < minD) { minD = d; closest = i; }
+  });
+  if (closest >= 0) {
+    dragging = closest;
+    svg.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+});
+
+svg.addEventListener('pointermove', (e) => {
+  if (dragging === null) return;
+  const pos = getMousePos(e);
+  pts[dragging].x = Math.max(0, Math.min(1, pos.x / W));
+  pts[dragging].y = Math.max(0, Math.min(1, pos.y / H));
+  render();
+});
+
+svg.addEventListener('pointerup', () => { dragging = null; });
+svg.addEventListener('pointercancel', () => { dragging = null; });
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  pts = JSON.parse(JSON.stringify(defaultPts));
+  render();
+});
+
+document.getElementById('showCtrl').addEventListener('change', render);
+document.getElementById('showLabels').addEventListener('change', render);
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  navigator.clipboard.writeText(codeOut.textContent).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+});
+
+render();
+</script>
+</body>
+</html>

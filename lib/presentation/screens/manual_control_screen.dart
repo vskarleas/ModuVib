@@ -375,31 +375,30 @@ class _TorsoPainter extends CustomPainter {
 
     final path = Path();
 
-    // Top center (neck)
     path.moveTo(w * 0.36, h * 0.01);
-    path.quadraticBezierTo(w * 0.50, 0, w * 0.64, h * 0.01);
 
     // Right shoulder
+    path.quadraticBezierTo(w * 0.50, h * 0.00, w * 0.64, h * 0.01);
     path.quadraticBezierTo(w * 0.82, h * 0.03, w * 0.90, h * 0.10);
-    path.quadraticBezierTo(w * 0.95, h * 0.16, w * 0.92, h * 0.25);
 
     // Right side (upper back → waist)
-    path.quadraticBezierTo(w * 0.88, h * 0.40, w * 0.84, h * 0.52);
-    path.quadraticBezierTo(w * 0.80, h * 0.64, w * 0.76, h * 0.72);
+    path.quadraticBezierTo(w * 0.95, h * 0.16, w * 0.92, h * 0.25);
+    path.quadraticBezierTo(w * 0.88, h * 0.40, w * 0.86, h * 0.52);
 
     // Right lower (hip flare → bottom)
+    path.quadraticBezierTo(w * 0.84, h * 0.60, w * 0.83, h * 0.71);
     path.quadraticBezierTo(w * 0.82, h * 0.79, w * 0.78, h * 0.88);
-    path.quadraticBezierTo(w * 0.70, h * 0.97, w * 0.50, h);
 
     // Left lower
+    path.quadraticBezierTo(w * 0.70, h * 0.97, w * 0.50, h * 1.00);
     path.quadraticBezierTo(w * 0.30, h * 0.97, w * 0.22, h * 0.88);
-    path.quadraticBezierTo(w * 0.18, h * 0.79, w * 0.24, h * 0.72);
 
     // Left side (waist → upper back)
-    path.quadraticBezierTo(w * 0.20, h * 0.64, w * 0.16, h * 0.52);
-    path.quadraticBezierTo(w * 0.12, h * 0.40, w * 0.08, h * 0.25);
+    path.quadraticBezierTo(w * 0.18, h * 0.79, w * 0.16, h * 0.71);
+    path.quadraticBezierTo(w * 0.16, h * 0.61, w * 0.13, h * 0.48);
 
     // Left shoulder
+    path.quadraticBezierTo(w * 0.12, h * 0.40, w * 0.08, h * 0.25);
     path.quadraticBezierTo(w * 0.05, h * 0.16, w * 0.10, h * 0.10);
     path.quadraticBezierTo(w * 0.18, h * 0.03, w * 0.36, h * 0.01);
 
