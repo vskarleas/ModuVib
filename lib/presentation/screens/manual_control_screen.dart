@@ -132,6 +132,17 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
     HapticFeedback.lightImpact();
   }
 
+  Future<void> _updateIntensityForSelectedMotors(double intensity) async {
+    if (_selectedMotors.isEmpty) return;
+    final bleService = ref.read(bleServiceProvider);
+    final byte = BleProtocol.intensityToByte(intensity);
+    for (final index in _selectedMotors) {
+      final motorId = _motorIdForIndex(index);
+      bleService.sendCommand(BleProtocol.motorCommand(motorId, byte));
+    }
+    _updateMotorProviders();
+  }
+
   Future<void> _deactivateMotor(int index) async {
     final bleService = ref.read(bleServiceProvider);
     final motorId = _motorIdForIndex(index);
@@ -240,6 +251,106 @@ class _ManualControlScreenState extends ConsumerState<ManualControlScreen> {
                 ),
               ),
             )),
+            const SizedBox(height: 16),
+
+            // ── Slider d'intensité (moteurs sélectionnés) ────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: AppColors.divider.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(LucideIcons.gauge,
+                            size: 20, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Puissance',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: textPrimary,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '$intensityPercent%',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      activeTrackColor: AppColors.primary,
+                      inactiveTrackColor: AppColors.secondary,
+                      thumbColor: Colors.white,
+                      overlayColor:
+                          AppColors.primary.withValues(alpha: 0.1),
+                      trackHeight: 8,
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 14,
+                        elevation: 4,
+                      ),
+                    ),
+                    child: Slider(
+                      value: intensity,
+                      max: ref.watch(maxIntensityThresholdProvider),
+                      onChanged: (v) {
+                        ref.read(masterIntensityProvider.notifier).state = v;
+                        _updateIntensityForSelectedMotors(v);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '0%',
+                        style: GoogleFonts.poppins(
+                            fontSize: 11, color: textSecondary),
+                      ),
+                      Text(
+                        'Max : ${(ref.watch(maxIntensityThresholdProvider) * 100).round()}%',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
 
             // ── Status bar ────────────────────────────────────

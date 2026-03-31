@@ -13,7 +13,7 @@
     --text: #1a1a1a;
     --text2: #6b6b6b;
     --border: rgba(0,0,0,0.12);
-    --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    --mono: 'Helvetica';
     --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --on-curve: #1D9E75;
     --control: #D85A30;
@@ -157,7 +157,7 @@
 </head>
 <body>
 
-<h1>Torso path editor</h1>
+<h1>Editor</h1>
 
 <div class="layout">
   <div class="canvas-wrap">
@@ -267,7 +267,7 @@ function render() {
     const fill = isOn ? 'var(--on-curve)' : 'var(--control)';
     s += `<circle cx="${pp.x}" cy="${pp.y}" r="${r}" fill="${fill}" stroke="var(--bg)" stroke-width="1.5" data-idx="${i}" class="handle"/>`;
     if (showLabels) {
-      s += `<text x="${pp.x + 9}" y="${pp.y - 9}" font-size="10" fill="var(--text2)" font-family="monospace">${p.id}</text>`;
+      s += `<text x="${pp.x + 9}" y="${pp.y - 9}" font-size="10" fill="var(--text2)" font-family="Helvetica">${p.id}</text>`;
     }
   });
 

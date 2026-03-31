@@ -63,11 +63,11 @@
 // value = (chip_number - 1) * 8 + drain_number
 #define M1   0
 #define M2   1
-#define M3   2
+#define M3   14
 #define M4   3
 #define M5   4
 #define M6   5
-#define M7   6
+#define M7   13
 #define M8   7
 #define M9   8
 #define M10  9

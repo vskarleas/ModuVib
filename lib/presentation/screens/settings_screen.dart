@@ -569,9 +569,20 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                     _FirmwareVersionTile(
-                      version: 'V6.2',
+                      version: 'V6.3',
                       date: 'Mars 2026',
                       isCurrent: true,
+                      changes: const [
+                        'Slider dans le page de contrôle manuel pour régler l\'intensité globale (master intensity) de 0 à 100%',
+                      ],
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                    ),
+                    const SizedBox(height: 16),
+                    _FirmwareVersionTile(
+                      version: 'V6.2',
+                      date: 'Mars 2026',
+                      isCurrent: false,
                       changes: const [
                         'Silhouette dorsale élargie en bas pour contenir M13 et M15 dans le contour',
                         'Correction du conflit de gestes : le glisser-déposer ne déclenche plus le changement de page',
