@@ -13,6 +13,7 @@
   * Contrôle de l'intensité via PWM sur la broche G (OE) du TPIC6C595 (`analogWrite`)
   * Refonte de l'écran de contrôle manuel : suppression des modes Précision/Dessin Libre, sélection et désélection des moteurs par simple toucher ou glisser-déposer
 * V6.2 : Silhouette dorsale élargie en bas pour que M13 et M15 restent à l'intérieur du contour \+ correction du conflit de gestes : le glisser-déposer sur la grille ne déclenche plus le changement de page
+* V6.3 : Added intensity slider on the manual control page
 
 ## TO-DO
 
