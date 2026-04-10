@@ -65,14 +65,7 @@ Open `esp32-code/code/code.ino` in the Arduino IDE, select the ESP32 board, and 
 
 ## Releases
 
-Pre-built Android APKs are committed in the `build/` folder. You can find them at:
-
-| Variant | Path |
-| ------- | ---- |
-| Debug | `build/app/outputs/flutter-apk/app-debug.apk` |
-| Release | `build/app/outputs/flutter-apk/app-release.apk` |
-
-Download the file directly from the repository to install on an Android device (enable *Install from unknown sources*).
+Pre-built Android APKs are available on the [GitHub Releases](https://github.com/vskarleas/ModuVib/releases) page. Download the `app-release.apk` file from the latest release to install on an Android device (enable *Install from unknown sources*).
 
 ## Project Organisation
 
@@ -258,14 +251,7 @@ Ouvrir `esp32-code/code/code.ino` dans l'Arduino IDE, selectionner la carte ESP3
 
 ## Versions publiees
 
-Les APK Android pre-compiles sont inclus dans le dossier `build/`. Vous pouvez les trouver ici :
-
-| Variante | Chemin |
-| -------- | ------ |
-| Debug | `build/app/outputs/flutter-apk/app-debug.apk` |
-| Release | `build/app/outputs/flutter-apk/app-release.apk` |
-
-Telechargez le fichier directement depuis le depot pour l'installer sur un appareil Android (activez *Installation depuis des sources inconnues*).
+Les APK Android pre-compiles sont disponibles sur la page [GitHub Releases](https://github.com/vskarleas/ModuVib/releases). Telechargez le fichier `app-release.apk` depuis la derniere version pour l'installer sur un appareil Android (activez *Installation depuis des sources inconnues*).
 
 ## Organisation du projet
 

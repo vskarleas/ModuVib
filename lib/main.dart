@@ -24,10 +24,12 @@ final initialRouteProvider = StateProvider<String>((ref) => AppRoutes.login);
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Initialize Firebase (guard against duplicate initialization on iOS)
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
 
   // Status bar style
   SystemChrome.setSystemUIOverlayStyle(
