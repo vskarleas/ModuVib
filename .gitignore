@@ -8,8 +8,13 @@ pubspec.lock
 *.cache.dill.track.dill
 doc/api/
 
-# Build outputs
-build/
+# Build outputs (keep build/app/outputs/flutter-apk/ for release APKs)
+build/*
+!build/app/
+build/app/*
+!build/app/outputs/
+build/app/outputs/*
+!build/app/outputs/flutter-apk/
 android/build/
 ios/build/
 macos/build/
@@ -35,7 +40,6 @@ macos/.symlinks/
 *.xcworkspace/xcuserdata/
 
 # IDE
-.idea/
 .vscode/
 *.swp
 *.swo

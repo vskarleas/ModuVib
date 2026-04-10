@@ -90,7 +90,7 @@ class SettingsScreen extends ConsumerWidget {
             _SettingsTile(
               icon: LucideIcons.refreshCw,
               title: 'Firmware',
-              subtitle: 'V6.2',
+              subtitle: 'V6.3',
               cardColor: cardColor,
               textPrimary: textPrimary,
               textSecondary: textSecondary,
@@ -522,7 +522,7 @@ class SettingsScreen extends ConsumerWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Version actuelle : V6.2',
+                'Version actuelle : V6.3',
                 style: GoogleFonts.poppins(fontSize: 12, color: textSecondary),
               ),
             ),
