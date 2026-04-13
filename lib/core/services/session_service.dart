@@ -40,6 +40,13 @@ class SessionService {
     final ref = _sessionsRef();
     if (ref == null) return [];
 
+    // Ensure the auth token is fresh before querying
+    try {
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
+    } catch (_) {
+      return [];
+    }
+
     final cutoff = DateTime.now().subtract(const Duration(days: 30));
     final snap = await ref
         .where('startTime', isGreaterThan: Timestamp.fromDate(cutoff))

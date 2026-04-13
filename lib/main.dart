@@ -43,8 +43,19 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final savedThreshold = prefs.getDouble('max_intensity_threshold') ?? 0.8;
 
-  // Check for active Firebase session
-  final currentUser = FirebaseAuth.instance.currentUser;
+  // Check for active Firebase session and refresh token
+  User? currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    try {
+      await currentUser.reload();
+      await currentUser.getIdToken(true);
+      currentUser = FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      // Token invalid after API key rotation — force sign out
+      await FirebaseAuth.instance.signOut();
+      currentUser = null;
+    }
+  }
 
   String startRoute = AppRoutes.login;
   if (currentUser != null) {
