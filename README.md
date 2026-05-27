@@ -387,6 +387,6 @@ Le fichier `esp32-code/code/code.ino` possede un flag `TEST_MODE` regle sur `tru
 
 ### License Information
 
-ModuVib © 2026 by Dounia Bakalem, Vasilis Filippos Skarleas, Damien Corset, and Yanis Sadoun is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International](https://creativecommons.org/licenses/by-nc/4.0/).
+ModuVib © 2026 by Dounia Bakalem, Vasileios Filippos Skarleas, Damien Corset, and Yanis Sadoun is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International](https://creativecommons.org/licenses/by-nc/4.0/).
 
 This work also includes content that is not the property of the authors and is subject to copyright and other licenses from their respective owners.
