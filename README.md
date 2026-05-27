@@ -2,6 +2,13 @@
 
 [English](#english) | [Français](#français)
 
+## Authors
+
+* Dounia BAKALEM
+* Vasileios Filippos SKARLEAS
+* Yanis SADOUN
+* Damien CORSET
+
 ---
 
 # English
@@ -373,3 +380,11 @@ Le fichier `esp32-code/code/code.ino` possede un flag `TEST_MODE` regle sur `tru
   * Le protocole contient tous les details des moteurs et les options codees en dur, comme les amplitudes proposees pour la page des programmes.
   * Le service gere toute la communication. Il inclut un module batterie qui verifie periodiquement le courant disponible sur la batterie, et gere tous les callbacks et les demandes de connexion au module ESP32 via les UUID codes en dur dans l'Arduino IDE.
 * L'utilisateur peut s'inscrire avec son email puis est invite a fournir son numero de telephone. Il peut ensuite se connecter soit par numero de telephone, soit par email/mot de passe. FaceID est egalement disponible en option.
+
+---
+
+### License Information
+
+ModuVib © 2026 by Dounia Bakalem, Vasilis Filippos Skarleas, Damien Corset, and Yanis Sadoun is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International](https://creativecommons.org/licenses/by-nc/4.0/).
+
+This work also includes content that is not the property of the authors and is subject to copyright and other licenses from their respective owners.
