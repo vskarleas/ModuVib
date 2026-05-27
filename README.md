@@ -317,7 +317,7 @@ Les APK Android pre-compiles sont disponibles sur la page [GitHub Releases](http
 * [X] Lors de la connexion a un compte existant, activer la securite biometrique si elle n'est pas configuree, et configurer le PIN a la place
 * [X] Si l'utilisateur s'est deja connecte une fois, ne pas le rediriger vers l'ecran d'authentification PIN / FaceID
 * [X] Remplacement de la tension codee en dur par une valeur liee a la puce ESP32 sur la page du tableau de bord
-* [X] Preparer la V5.0 : vue detaillee des statistiques, envoi de la commande stop depuis les patterns meme si le telephone est verrouille, correction du firmware et de la section « A propos » dans les parametres (pop-up s'ouvrant par le bas — le probleme etait la couleur de fond blanche ; meme style que le pop-up batterie mais plus grand)
+* [X] Preparer la V5.0 : vue detaillee des statistiques, envoi de la commande stop depuis les patterns meme si le telephone est verrouille, correction du firmware et de la section « A propos » dans les parametres (pop-up s'ouvrant par le bas — le probleme etait la couleur de fond blanche ; meme style que le pop-up batterie mais plus grand).
 
 ## Protocole BLE — Commandes 3 octets `[CMD, TARGET, VALUE]`
 
