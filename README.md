@@ -4,10 +4,10 @@
 
 ## Authors
 
-* Dounia BAKALEM
-* Vasileios Filippos SKARLEAS
-* Yanis SADOUN
-* Damien CORSET
+* Dounia Bakalem
+* Vasileios Filippos Skarleas
+* Yanis Sadoun
+* Damien Corset
 
 ---
 
