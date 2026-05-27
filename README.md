@@ -379,7 +379,7 @@ Le fichier `esp32-code/code/code.ino` possede un flag `TEST_MODE` regle sur `tru
 
 * Firebase est utilise comme fournisseur de base de donnees. Les sessions utilisateur sont sauvegardees dans la base de donnees, incluant les heures de debut et de fin ainsi que la moyenne de l'amplitude des vibrations.
 * Le Bluetooth comprend un service et un protocole :
-  * Le protocole contient tous les details des moteurs et les options codees en dur, comme les amplitudes proposees pour la page des programmes.
+  * Le protocole contient tous les details des moteurs et les options codees en dur, comme les amplitudes proposees pour la page des programmes
   * Le service gere toute la communication. Il inclut un module batterie qui verifie periodiquement le courant disponible sur la batterie, et gere tous les callbacks et les demandes de connexion au module ESP32 via les UUID codes en dur dans l'Arduino IDE.
 * L'utilisateur peut s'inscrire avec son email puis est invite a fournir son numero de telephone. Il peut ensuite se connecter soit par numero de telephone, soit par email/mot de passe. FaceID est egalement disponible en option.
 
